@@ -30,6 +30,7 @@ setup(  name='mainzer',
                           'aa2atom',
                           'nogui'],
         scripts = [
-            'bin/lipido.py'
+            'bin/lipido.py',
+            'bin/mainzer.py'
         ]
 )
