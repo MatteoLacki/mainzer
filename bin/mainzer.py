@@ -1,10 +1,9 @@
 import pandas as pd
-pd.set_option('display.max_columns', None)
 import pathlib
 from pprint import pprint
 import json
 from datetime import datetime
-analysis_time = datetime.now().strftime('lipido__date_%Y_%m_%d_time_%H_%M_%S')
+analysis_time = datetime.now().strftime('mainzer__date_%Y_%m_%d_time_%H_%M_%S')
 from nogui.forms import ask_if, ask_for
 
 from mainzer.read import read
@@ -55,6 +54,7 @@ path_ions = pathlib.Path(input("Paste in the path to 'ions.csv': "))
 # path_molecules = pathlib.Path("/home/matteo/Projects/och_Kallol/unlipid/data/test/molecules.csv")
 assert path_ions.exists(), "The csv with ions is not available."
 ions = pd.read_csv(path_ions)
+assert all(colname in ions.columns for colname in ('name','charge','formula'))
 
 path_spectrum = pathlib.Path(input("Paste in the path to the spectrum: "))
 # path_spectrum = pathlib.Path("/home/matteo/Projects/och_Kallol/unlipid/data/07232020_Resolution50000_64bit.mzML")
