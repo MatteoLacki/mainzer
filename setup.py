@@ -31,6 +31,6 @@ setup(  name='mainzer',
                           'nogui'],
         scripts = [
             'bin/lipido.py',
-            'bin/mainzer.py'
+            'bin/mainz.py'
         ]
 )
