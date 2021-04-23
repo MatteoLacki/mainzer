@@ -1,0 +1,44 @@
+
+# Every line starting with a # is a comment
+
+# Star allowed only here, will process all the matching files
+# Path should be absolute, or relative to the .mainzer file
+path_spectrum = '*.mzML'
+
+path_molecules = 'molecules.csv'
+
+# Maximal number of adducts
+max_lipid_mers = 4
+
+# Minimal protein charge state
+min_protein_charge = 1
+
+# Maximal protein charge state
+max_protein_charge = 10
+
+# Minimal charge on a free lipid cluster
+min_lipid_charge = 1
+
+# Maximal charge on a free lipid cluster
+max_lipid_charge = 10
+
+# IsoSpec probability coverage [0<x<1] (only values close to 1, like 0.99, make sense though)
+isotopic_coverage = 0.99
+
+# IsoSpec bin size in Thomsons [0<x]
+isotopic_bin_size = 0.1
+
+# Neighbourhood buffer size in Thomsons [0<x]
+neighbourhood_thr = 1.1
+
+# Single molecule underfit quantile [0<x]
+underfitting_quantile = 0.05
+
+# Deconvolve? [true/false]
+deconvolve = true
+
+# Penalty for fitting with theory where there is no signal [0<x, only used when deconvolve=true]
+fitting_to_void_penalty = 1.0
+
+# Verbose? [true/false]
+verbose = true
