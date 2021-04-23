@@ -28,7 +28,8 @@ setup(  name='mainzer',
                           'pyteomics',
                           'matplotlib',
                           'aa2atom',
-                          'nogui'],
+                          'nogui',
+                          'toml'],
         scripts = [
             'bin/lipido.py',
             'bin/mainz.py'
