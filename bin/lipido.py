@@ -68,6 +68,7 @@ output_folder = pathlib.Path(input("Ouput folder: ")).expanduser()
 output_folder.mkdir(parents=True, exist_ok=True)
 (output_folder/analysis_time).mkdir(parents=True, exist_ok=True)
 settings["output_folder"] = str(output_folder)
+settings["min_intensity"] = ask_for("Threshold for intensities to consider [0<x]:", 0.0, float)
 settings["max_lipid_mers"] = ask_for("Maximal number of adducts:", 4)
 settings["min_protein_charge"] = ask_for("Minimal protein charge state:", 1)
 settings["max_protein_charge"] = ask_for("Maximal protein charge state:", 10)
@@ -81,6 +82,9 @@ settings["deconvolve"] = ask_if("Deconvolve? [Y/n]")
 if settings["deconvolve"]:
     settings["fitting_to_void_penalty"] = ask_for("Penalty for fitting with theory where there is no signal [0<x]:", 1.0, float)
 settings["verbose"] = ask_if("Verbose? [Y/n]")
+
+
+mz, intensity = mz[intensity > settings["min_intensity"]], intensity[intensity > settings["min_intensity"]]
 
 print()
 print("Running Lipido with:")
