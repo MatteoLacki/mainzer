@@ -96,7 +96,7 @@ print("Getting ions")
 ions = get_lipido_ions(molecules, **settings)
 
 print("Estimating intenisities")
-ions, timings = estimate_intensities(mz, intensity, ions, verbose_output=False, **settings)
+ions, centroids, timings  = estimate_intensities(mz, intensity, ions, verbose_output=False, **settings)
 
 column_order = ["name"]
 if "deconvolved_intensity" in ions.columns:
@@ -111,6 +111,7 @@ column_order.extend(["maximal_intensity",
                      "isospec_final_coverage",
                      "isospec_prob_with_signal",
                      "isospec_prob_without_signal",
+                     "touched_centroids",
                      "isospec_peaks_count",
                      "min_isospec_mz",
                      "max_isospec_mz"])
@@ -125,6 +126,7 @@ final_folder = output_folder/analysis_time
 print("Saving results")
 proteins.to_csv(final_folder/"proteins.csv")
 lipid_clusters.to_csv(final_folder/"lipid_clusters.csv")
+centroids.df.to_csv(final_folder/"centroids.csv")
 
 with open(final_folder/"timings.json", "w") as jsonfile:
     json.dump(timings, jsonfile, indent=4)

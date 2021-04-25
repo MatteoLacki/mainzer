@@ -40,7 +40,6 @@ def estimate_intensities(mz,
     ions = ions.set_index(ion_idx)
     timer('isotopic_envelopes')
 
-
     if verbose:
         print("Centroiding")
 
@@ -91,7 +90,7 @@ def estimate_intensities(mz,
     if verbose:
         print("Summarizing assignments.")
 
-    peak_assignments_summary = peak_assignments_clustered.groupby(ion_idx).agg({"isospec_prob":"sum", "I_sum":"sum"}).rename(columns={"isospec_prob":"isospec_prob_with_signal", "I_sum":"proximity_intensity"})
+    peak_assignments_summary = peak_assignments_clustered.groupby(ion_idx).agg({"isospec_prob":"sum", "I_sum":"sum", "cluster":"nunique"}).rename(columns={"isospec_prob":"isospec_prob_with_signal", "I_sum":"proximity_intensity", "cluster":"touched_centroids"})
     peak_assignments_summary["isospec_final_coverage"] = ions.isospec_final_coverage
     peak_assignments_summary.eval("isospec_prob_without_signal = isospec_final_coverage - isospec_prob_with_signal", inplace=True)
 
@@ -99,12 +98,15 @@ def estimate_intensities(mz,
     ions = pd.merge(ions,
                     peak_assignments_summary[['isospec_prob_with_signal',
                                               'isospec_prob_without_signal',
-                                              'proximity_intensity']], 
+                                              'proximity_intensity',
+                                              'touched_centroids']], 
                     left_index=True, 
                     right_index=True,
                     how='left')
     ions.isospec_prob_with_signal.fillna(0, inplace=True)
     ions.proximity_intensity.fillna(0, inplace=True)
+    ions.touched_centroids.fillna(0, inplace=True)
+    ions.touched_centroids = ions.touched_centroids.astype(int)
     ions.isospec_prob_without_signal = np.where(ions.isospec_prob_without_signal.isna(), ions.isospec_final_coverage, ions.isospec_prob_without_signal)
     timer('summarizing assignments')
 
@@ -114,7 +116,7 @@ def estimate_intensities(mz,
         if verbose_output:
             return ions, centroids, peak_assignments_clustered, dict(timer)
         else:
-            return ions, dict(timer)
+            return ions, centroids, dict(timer)
     else:
         if verbose:
             print("Building deconvolution graph.")
@@ -137,9 +139,20 @@ def estimate_intensities(mz,
         ions["deconvolved_intensity"] = estimates
         ions.deconvolved_intensity.fillna(0, inplace=True)
 
+        # getting errors
+        peak_assignments_clustered = peak_assignments_clustered.merge(estimates,
+                                                                      left_on=ion_idx,
+                                                                      right_index=True).rename(columns={"estimate":"alpha"})
+        peak_assignments_clustered.alpha.fillna(0, inplace=True)
+        peak_assignments_clustered.eval("""under_estimate = alpha * isospec_prob""", inplace=True)
+
+        peak_assignments_clustered.groupby("cluster").size()
+        centroids.df["under_estimate"] = peak_assignments_clustered.groupby("cluster").under_estimate.sum()
+        centroids.df.under_estimate.fillna(0.0, inplace=True)
+        centroids.df.eval("""under_estimate_remainder = I_sum - under_estimate""", inplace=True)
+
         assert np.all(ions.maximal_intensity >= ions.deconvolved_intensity), "Maximal estimates lower than deconvolved!"
         timer('fitting models')
-
 
         if verbose:
             print("Done!")
@@ -147,4 +160,4 @@ def estimate_intensities(mz,
         if verbose_output:
             return ions, centroids, peak_assignments_clustered, G, convoluted_ions, models, dict(timer)
         else:
-            return ions, dict(timer)
+            return ions, centroids, dict(timer)
