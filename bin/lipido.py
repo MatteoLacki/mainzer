@@ -70,6 +70,7 @@ output_folder = pathlib.Path(input("Ouput folder: ")).expanduser()
 output_folder.mkdir(parents=True, exist_ok=True)
 (output_folder/analysis_time).mkdir(parents=True, exist_ok=True)
 settings["output_folder"] = str(output_folder)
+settings["min_intensity"] = ask_for("Threshold for intensities to consider [0<x]:", 0.0, float)
 settings["max_lipid_mers"] = ask_for("Maximal number of adducts:", 4)
 settings["min_protein_charge"] = ask_for("Minimal protein charge state:", 1)
 settings["max_protein_charge"] = ask_for("Maximal protein charge state:", 10)
@@ -84,6 +85,9 @@ if settings["deconvolve"]:
     settings["fitting_to_void_penalty"] = ask_for("Penalty for fitting with theory where there is no signal [0<x]:", 1.0, float)
 settings["verbose"] = ask_if("Verbose? [Y/n]")
 
+
+mz, intensity = mz[intensity > settings["min_intensity"]], intensity[intensity > settings["min_intensity"]]
+
 print()
 print("Running Lipido with:")
 pprint(settings)
@@ -94,7 +98,7 @@ print("Getting ions")
 ions = get_lipido_ions(molecules, **settings)
 
 print("Estimating intenisities")
-ions, timings = estimate_intensities(mz, intensity, ions, verbose_output=False, **settings)
+ions, centroids, timings  = estimate_intensities(mz, intensity, ions, verbose_output=False, **settings)
 
 column_order = ["name"]
 if "deconvolved_intensity" in ions.columns:
@@ -109,6 +113,7 @@ column_order.extend(["maximal_intensity",
                      "isospec_final_coverage",
                      "isospec_prob_with_signal",
                      "isospec_prob_without_signal",
+                     "touched_centroids",
                      "isospec_peaks_count",
                      "min_isospec_mz",
                      "max_isospec_mz"])
@@ -123,6 +128,7 @@ final_folder = output_folder/analysis_time
 print("Saving results")
 proteins.to_csv(final_folder/"proteins.csv")
 lipid_clusters.to_csv(final_folder/"lipid_clusters.csv")
+centroids.df.to_csv(final_folder/"centroids.csv")
 
 with open(final_folder/"timings.json", "w") as jsonfile:
     json.dump(timings, jsonfile, indent=4)
