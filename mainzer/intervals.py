@@ -1,5 +1,8 @@
 from ncls import FNCLS
 import numpy as np
+if False: # Do NOT remove this: this is to trick pyinstaller into
+          # importing the necessary packages
+    import scipy.spatial.transform._rotation_groups
 
 
 class IntervalQuery(object):

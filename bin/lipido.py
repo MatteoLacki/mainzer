@@ -6,6 +6,8 @@ from datetime import datetime
 analysis_time = datetime.now().strftime('lipido__date_%Y_%m_%d_time_%H_%M_%S')
 from nogui.forms import ask_if, ask_for
 
+import IsoSpecPy # Not used, here, but to make sure pyinstaller pulls it in
+
 from mainzer.read import read
 from mainzer.lipido import get_lipido_ions
 from mainzer.deconv import estimate_intensities

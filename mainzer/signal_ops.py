@@ -162,6 +162,6 @@ def cluster_spectrum(mz, intensity):
     clustered_spectrum = pd.DataFrame({"mz_apex":mz_apex, "I_max":I_max, "I_sum": I_sum})
     clustered_spectrum["left_idx"], clustered_spectrum["right_idx"] = get_cluster_ends(mz_clusters)
     clustered_spectrum.eval("""left_mz = @mz[left_idx]
-                               right_mz = @mz[right_idx]""", inplace=True)
+                               right_mz = @mz[right_idx]""", inplace=True, engine="python")
     # clustered_spectrum = clustered_spectrum.query("left_idx < right_idx and I_sum > 0")
     return clustered_spectrum

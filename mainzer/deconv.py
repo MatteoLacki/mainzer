@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import numexpr
 
 from .isotope_ops import IsotopicEnvelopes
 from .centroids import Centroids
@@ -31,11 +32,14 @@ def estimate_intensities(mz,
         print("Getting Isotopic Envelopes")
 
     timer = Timer()
+    print("Timer")
     isotopic_envelopes = IsotopicEnvelopes(ions.formula.unique(),
                                            coverage=isotopic_coverage,
                                            bin_size=isotopic_bin_size)
+    print("Ctored")
 
     ions = ions.merge(isotopic_envelopes.charged_envelopes_summary(ions.formula, ions.charge))
+    print("merged")
     ion_idx = ['formula','charge']
     ions = ions.set_index(ion_idx)
     timer('isotopic_envelopes')
@@ -83,8 +87,7 @@ def estimate_intensities(mz,
     if verbose:
         print("Getting maximal intensity estimates.")
 
-    ions["maximal_intensity"] = peak_assignments_clustered.set_index(ion_idx).eval("I_sum / isospec_prob").groupby(ion_idx).quantile(underfitting_quantile)
-    ions.maximal_intensity.fillna(0, inplace=True)
+    ions["maximal_intensity"] peak_assignments_clustered.set_index(ion_idx).eval("I_sum / isospec_prob", engine="python").groupby(ion_idx).quantile(underfitting_quantile)
     timer('estimating maximal intensity')
 
 
@@ -93,7 +96,7 @@ def estimate_intensities(mz,
 
     peak_assignments_summary = peak_assignments_clustered.groupby(ion_idx).agg({"isospec_prob":"sum", "I_sum":"sum"}).rename(columns={"isospec_prob":"isospec_prob_with_signal", "I_sum":"proximity_intensity"})
     peak_assignments_summary["isospec_final_coverage"] = ions.isospec_final_coverage
-    peak_assignments_summary.eval("isospec_prob_without_signal = isospec_final_coverage - isospec_prob_with_signal", inplace=True)
+    peak_assignments_summary.eval("isospec_prob_without_signal = isospec_final_coverage - isospec_prob_with_signal", inplace=True, engine="python")
 
     # adding peak assignment summary to ions
     ions = pd.merge(ions,

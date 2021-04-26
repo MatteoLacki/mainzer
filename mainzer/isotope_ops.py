@@ -44,13 +44,14 @@ class IsotopicEnvelopes(dict):
                    "max_mass": masses.max()}
 
     def envelopes_summary(self, formulas=None):
+        print("Envelopes_summary")
         return pd.DataFrame(self.iter_envelope_summaries(formulas))
 
     def charged_envelopes_summary(self, formulas, charges):
         res = self.envelopes_summary(formulas)
         res['charge'] = charges
         res.eval("""min_isospec_mz = min_mass / charge + @self.PROTON_MASS
-                    max_isospec_mz = max_mass / charge + @self.PROTON_MASS""", inplace=True)
+                    max_isospec_mz = max_mass / charge + @self.PROTON_MASS""", inplace=True, engine="python")
         res.drop(['min_mass','max_mass'], axis=1, inplace=True)
         return res
 
