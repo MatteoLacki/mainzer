@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import numexpr
 
 from .isotope_ops import IsotopicEnvelopes
 from .centroids import Centroids
@@ -86,7 +85,11 @@ def estimate_intensities(mz,
     if verbose:
         print("Getting maximal intensity estimates.")
 
-    ions["maximal_intensity"] peak_assignments_clustered.set_index(ion_idx).eval("I_sum / isospec_prob", engine="python").groupby(ion_idx).quantile(underfitting_quantile)
+    max_intensity = peak_assignments_clustered.set_index(ion_idx)
+    max_intensity = max_intensity.I_sum / max_intensity.isospec_prob
+    max_intensity = max_intensity.groupby(ion_idx).quantile(underfitting_quantile)
+    ions["maximal_intensity"] = max_intensity
+    ions.maximal_intensity.fillna(0, inplace=True)
     timer('estimating maximal intensity')
 
 
