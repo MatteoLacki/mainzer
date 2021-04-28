@@ -112,6 +112,6 @@ for path_spectrum in glob.glob(settings["path_spectrum"]):
     with open(final_folder/"settings.json", "w") as jsonfile:
         json.dump(settings, jsonfile, indent=4)
     with open(final_folder/"config.mainzer", "w") as toml_out_file:
-        toms_out_file.write(toml_str)
+        toml_out_file.write(toml_str)
 
     print("Thank you for letting Lipido do its job!")
