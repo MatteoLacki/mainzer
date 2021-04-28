@@ -14,7 +14,6 @@ from mainzer.read import read
 from mainzer.lipido import get_lipido_ions
 from mainzer.deconv import estimate_intensities
 
-import toml
 
 def usage():
     print('''
@@ -28,7 +27,10 @@ if len(sys.argv) < 2:
 
 
 config_path = Path(sys.argv[1])
-settings = toml.load(config_path)
+
+with open(config_path) as f:
+    toml_str = f.read()
+settings = toml.loads(toml_str)
 
 os.chdir(config_path.parent)
 # Make it accept CLI arguments!
@@ -109,5 +111,7 @@ for path_spectrum in glob.glob(settings["path_spectrum"]):
         json.dump(timings, jsonfile, indent=4)
     with open(final_folder/"settings.json", "w") as jsonfile:
         json.dump(settings, jsonfile, indent=4)
+    with open(final_folder/"config.mainzer", "w") as toml_out_file:
+        toms_out_file.write(toml_str)
 
     print("Thank you for letting Lipido do its job!")
