@@ -96,7 +96,7 @@ def parse_upload(contents, filename, date):
     content_type, content_string = contents.split(',')
     decoded = base64.b64decode(content_string)
     try:
-        if 'csv' in filename:
+        if '.csv' in filename:
             df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
         elif 'xls' in filename:
             df = pd.read_excel(io.BytesIO(decoded))
@@ -120,7 +120,7 @@ def parse_upload(contents, filename, date):
                                 style_cell={
                                     'overflow': 'hidden',
                                     'textOverflow': 'ellipsis',
-                                   1 'maxWidth': 0,
+                                    'maxWidth': 0,
                                 },
                                 tooltip_data=[
                                     {
