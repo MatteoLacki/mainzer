@@ -96,14 +96,14 @@ def parse_upload(contents, filename, date):
     content_type, content_string = contents.split(',')
     decoded = base64.b64decode(content_string)
     try:
-        if '.csv' in filename:
+        if filename.lower().endswith('.csv'):
             df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
-        elif 'xls' in filename:
+        elif filename.lower().endswith('.xls'):
             df = pd.read_excel(io.BytesIO(decoded))
-        elif 'mzML' in filename:
+        elif filename.lower().endswith('.mzml'):
             import pyteomics.mzml
             import pyteomics.mzxml
-            test = pyteomics.mzml.read(decoded.decode('utf-8'))
+            test = pyteomics.mzml.read(io.BytesIO(decoded))
             data = next(test)
             df = pd.DataFrame({"mz":data['m/z array'],
                                "intensity":data['intensity array']})
