@@ -6,6 +6,7 @@ from aa2atom import aa2atom, atom2str
 from mainzer.read import read
 from mainzer.deconv import estimate_intensities
 from mainzer.settings import Settings
+from mainzer.baseline import strip_baseline
 
 aa2str = lambda aa: atom2str(aa2atom(aa))
 
@@ -64,7 +65,7 @@ def lipido_main(settings, do_prints = True):
     output_folder.mkdir(parents=True, exist_ok=True)
     (output_folder/analysis_time).mkdir(parents=True, exist_ok=True)
 
-    mz, intensity = mz[intensity > settings["min_intensity"]], intensity[intensity > settings["min_intensity"]]
+#    mz, intensity = mz[intensity > settings["min_intensity"]], intensity[intensity > settings["min_intensity"]]
 
     if do_prints:
         print()
@@ -76,6 +77,10 @@ def lipido_main(settings, do_prints = True):
         print("Getting ions")
     ions = get_lipido_ions(molecules, **(settings.settings))
 
+    if do_prints:
+        print("Baseline correction")
+
+    mz, intensity = strip_baseline(mz, intensity, settings["min_intensity"])
     if do_prints:
         print("Estimating intenisities")
 

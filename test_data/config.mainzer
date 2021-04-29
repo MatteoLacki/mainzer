@@ -1,11 +1,13 @@
-
 # Every line starting with a # is a comment
 
-# Star allowed only here, will process all the matching files
-# Path should be absolute, or relative to the .mainzer file
+# Path to the spectrum (mzML, mzXML, csv). May contain an asterisk to match multiple files.
 path_spectrum = '*.mzML'
 
+# Path to the file containing "ion seeds": molecules that give rise to all the ions we search for
 path_molecules = 'molecules.csv'
+
+# Threshold for intensities to consider [0<=x]
+min_intensity = 1.0
 
 # Maximal number of adducts
 max_lipid_mers = 4
@@ -25,7 +27,7 @@ max_lipid_charge = 10
 # IsoSpec probability coverage [0<x<1] (only values close to 1, like 0.99, make sense though)
 isotopic_coverage = 0.99
 
-# IsoSpec bin size in Thomsons [0<x]
+# IsoSpec bin size in Thomsons, [0<x]
 isotopic_bin_size = 0.1
 
 # Neighbourhood buffer size in Thomsons [0<x]
