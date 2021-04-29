@@ -49,22 +49,23 @@ class Settings:
                 return False
             raise ValueError("Response " + s + " not understood.")
 
-        for name, type_, default, descr in settings_lst:
+        for name, type_, default, descr in settings_list:
             conv = type_
             if type_ == bool:
-                descr += " [Y/n]" if default else " [N/y]>"
+                descr += " [Y/n] >" if default else " [N/y] >"
                 conv = bool_conv
             else:
                 descr = f"{descr} (default: {default}) >"
 
             while True:
                 try:
-                    print(descr)
-                    val = conv(input())
+                    print(descr, end='')
+                    i = input()
+                    val = default if i == '' else conv(i)
                     result[name] = val
                     break
                 except ValueError as e:
-                    print(e.message)
+                    print(str(e))
 
         return result
 
@@ -108,4 +109,4 @@ class Settings:
             path_or_filelike.write(toml_s)
             
 if __name__ == "__main__":
-    print(Settings().toml_str())
+    print(Settings.FromConsole().toml_str())
