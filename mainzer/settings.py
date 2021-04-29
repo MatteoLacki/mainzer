@@ -1,5 +1,5 @@
 import toml
-
+import pprint
 
 
 settings_list = (
@@ -75,6 +75,9 @@ class Settings:
 
     def __setitem__(self, key, val):
         self.settings[key] = val
+
+    def __str__(self):
+        return pprint.pformat(self.settings)
 
     def toml_str(self):
         result = ["# Every line starting with a # is a comment\n"]

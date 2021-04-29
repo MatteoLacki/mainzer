@@ -73,10 +73,10 @@ for path_spectrum in glob.glob(settings["path_spectrum"]):
     print("It's business time!")
 
     print("Getting ions")
-    ions = get_lipido_ions(molecules, **settings)
+    ions = get_lipido_ions(molecules, **(settings.settings))
 
     print("Estimating intenisities")
-    ions, timings = estimate_intensities(mz, intensity, ions, verbose_output=False, **settings)
+    ions, timings = estimate_intensities(mz, intensity, ions, verbose_output=False, **(settings.settings))
 
     column_order = ["name"]
     if "deconvolved_intensity" in ions.columns:
@@ -109,8 +109,9 @@ for path_spectrum in glob.glob(settings["path_spectrum"]):
     with open(final_folder/"timings.json", "w") as jsonfile:
         json.dump(timings, jsonfile, indent=4)
     with open(final_folder/"settings.json", "w") as jsonfile:
-        json.dump(settings, jsonfile, indent=4)
-    with open(final_folder/"config.mainzer", "w") as toml_out_file:
-        toml_out_file.write(toml_str)
+        json.dump(settings.settings, jsonfile, indent=4)
+    settings.save_toml(final_folder/"config.mainzer")
+#    with open(final_folder/"config.mainzer", "w") as toml_out_file:
+#        toml_out_file.write(toml_str)
 
     print("Thank you for letting Lipido do its job!")
