@@ -13,6 +13,7 @@ from nogui.forms import ask_if, ask_for
 from mainzer.read import read
 from mainzer.lipido import get_lipido_ions
 from mainzer.deconv import estimate_intensities
+from mainzer.settings import Settings
 
 
 def usage():
@@ -28,9 +29,7 @@ if len(sys.argv) < 2:
 
 config_path = Path(sys.argv[1])
 
-with open(config_path) as f:
-    toml_str = f.read()
-settings = toml.loads(toml_str)
+settings = Settings.FromTOML(config_path)
 
 os.chdir(config_path.parent)
 # Make it accept CLI arguments!
