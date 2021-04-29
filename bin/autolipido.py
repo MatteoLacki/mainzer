@@ -68,7 +68,7 @@ for path_spectrum in glob.glob(settings["path_spectrum"]):
     output_folder.mkdir(parents=True, exist_ok=True)
     (output_folder/analysis_time).mkdir(parents=True, exist_ok=True)
     print("Running Lipido with:")
-    pprint(settings)
+    settings.print_summary()
     print()
     print("It's business time!")
 

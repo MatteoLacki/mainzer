@@ -79,6 +79,9 @@ class Settings:
     def __str__(self):
         return pprint.pformat(self.settings)
 
+    def print_summary(self)
+        print(str(self))
+
     def toml_str(self):
         result = ["# Every line starting with a # is a comment\n"]
 
