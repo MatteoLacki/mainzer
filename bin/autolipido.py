@@ -11,7 +11,7 @@ analysis_time = datetime.now().strftime('lipido__date_%Y_%m_%d_time_%H_%M_%S')
 from nogui.forms import ask_if, ask_for
 
 from mainzer.read import read
-from mainzer.lipido import get_lipido_ions
+from mainzer.lipido import lipido_main
 from mainzer.deconv import estimate_intensities
 from mainzer.settings import Settings
 
@@ -61,10 +61,11 @@ settings["verbose"] = ask_if("Verbose? [Y/n]")
 '''
 print()
 for path_spectrum in glob.glob(settings["path_spectrum"]):
-    settings["path_spectrum"] = path_spectrum
     path_spectrum = Path(path_spectrum)
-    mz, intensity = read(path_spectrum)
-    output_folder = Path(path_spectrum.stem) / "output"
+    settings["path_spectrum"] = str(path_spectrum)
+    settings['output_folder'] = str(Path(path_spectrum.stem) / "output")
+    lipido_main(settings)
+    '''
     output_folder.mkdir(parents=True, exist_ok=True)
     (output_folder/analysis_time).mkdir(parents=True, exist_ok=True)
     print("Running Lipido with:")
@@ -76,7 +77,7 @@ for path_spectrum in glob.glob(settings["path_spectrum"]):
     ions = get_lipido_ions(molecules, **(settings.settings))
 
     print("Estimating intenisities")
-    ions, timings = estimate_intensities(mz, intensity, ions, verbose_output=False, **(settings.settings))
+    ions, centroids, timings = estimate_intensities(mz, intensity, ions, verbose_output=False, **(settings.settings))
 
     column_order = ["name"]
     if "deconvolved_intensity" in ions.columns:
@@ -115,3 +116,4 @@ for path_spectrum in glob.glob(settings["path_spectrum"]):
 #        toml_out_file.write(toml_str)
 
     print("Thank you for letting Lipido do its job!")
+'''

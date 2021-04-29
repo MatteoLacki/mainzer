@@ -2,14 +2,12 @@ import pandas as pd
 import pathlib
 from pprint import pprint
 import json
-from datetime import datetime
-analysis_time = datetime.now().strftime('lipido__date_%Y_%m_%d_time_%H_%M_%S')
 from nogui.forms import ask_if, ask_for
 
 import IsoSpecPy # Not used, here, but to make sure pyinstaller pulls it in
 
 from mainzer.read import read
-from mainzer.lipido import get_lipido_ions
+from mainzer.lipido import lipido_main
 from mainzer.deconv import estimate_intensities
 from mainzer.settings import Settings
 
@@ -63,6 +61,8 @@ assert path_spectrum.exists(), "This spectrum file is not available."
 '''
 
 settings = Settings.FromConsole()
+settings['output_folder'] = str(pathlib.Path(input("Ouput folder: ")).expanduser())
+lipido_main(settings)
 '''
 settings["path_molecules"] = str(path_molecules)
 settings["path_spectrum"] = str(path_spectrum)
@@ -81,6 +81,7 @@ settings["deconvolve"] = ask_if("Deconvolve? [Y/n]")
 if settings["deconvolve"]:
     settings["fitting_to_void_penalty"] = ask_for("Penalty for fitting with theory where there is no signal [0<x]:", 1.0, float)
 settings["verbose"] = ask_if("Verbose? [Y/n]")
+'''
 '''
 molecules = pd.read_csv(settings['path_molecules'])
 mz, intensity = read(settings['path_spectrum'])
@@ -138,3 +139,4 @@ with open(final_folder/"settings.json", "w") as jsonfile:
     json.dump(settings, jsonfile, indent=4)
 
 print("Thank you for letting Lipido do its job!")
+'''
