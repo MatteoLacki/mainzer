@@ -79,7 +79,7 @@ class Settings:
     def __str__(self):
         return pprint.pformat(self.settings)
 
-    def print_summary(self)
+    def print_summary(self):
         print(str(self))
 
     def toml_str(self):
