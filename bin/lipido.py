@@ -11,6 +11,7 @@ import IsoSpecPy # Not used, here, but to make sure pyinstaller pulls it in
 from mainzer.read import read
 from mainzer.lipido import get_lipido_ions
 from mainzer.deconv import estimate_intensities
+from mainzer.settings import Settings
 
 
 print()
@@ -51,24 +52,20 @@ print("This program means business!")
 print()
 
 # Make it accept CLI arguments!
-
+'''
 path_molecules = pathlib.Path(input("Paste in the path to 'molecules.csv': "))
 # path_molecules = pathlib.Path("/home/matteo/Projects/och_Kallol/unlipid/data/test/molecules.csv")
 assert path_molecules.exists(), "The csv with molecules is not available."
-molecules = pd.read_csv(path_molecules)
 
 path_spectrum = pathlib.Path(input("Paste in the path to the spectrum: "))
 # path_spectrum = pathlib.Path("/home/matteo/Projects/och_Kallol/unlipid/data/07232020_Resolution50000_64bit.mzML")
 assert path_spectrum.exists(), "This spectrum file is not available."
-mz, intensity = read(path_spectrum)
+'''
 
-
-settings = {}
+settings = Settings.FromConsole()
+'''
 settings["path_molecules"] = str(path_molecules)
 settings["path_spectrum"] = str(path_spectrum)
-output_folder = pathlib.Path(input("Ouput folder: ")).expanduser()
-output_folder.mkdir(parents=True, exist_ok=True)
-(output_folder/analysis_time).mkdir(parents=True, exist_ok=True)
 settings["output_folder"] = str(output_folder)
 settings["min_intensity"] = ask_for("Threshold for intensities to consider [0<x]:", 0.0, float)
 settings["max_lipid_mers"] = ask_for("Maximal number of adducts:", 4)
@@ -84,7 +81,12 @@ settings["deconvolve"] = ask_if("Deconvolve? [Y/n]")
 if settings["deconvolve"]:
     settings["fitting_to_void_penalty"] = ask_for("Penalty for fitting with theory where there is no signal [0<x]:", 1.0, float)
 settings["verbose"] = ask_if("Verbose? [Y/n]")
-
+'''
+molecules = pd.read_csv(settings['path_molecules'])
+mz, intensity = read(settings['path_spectrum'])
+output_folder = pathlib.Path(input("Ouput folder: ")).expanduser()
+output_folder.mkdir(parents=True, exist_ok=True)
+(output_folder/analysis_time).mkdir(parents=True, exist_ok=True)
 
 mz, intensity = mz[intensity > settings["min_intensity"]], intensity[intensity > settings["min_intensity"]]
 

@@ -35,7 +35,39 @@ class Settings:
         except TypeError:
             toml_str = path_or_filelike.read()
 
-        self.settings.update(toml.loads(toml_str))
+        result = Settings()
+        result.settings.update(toml.loads(toml_str))
+        return result
+
+    @staticmethod
+    def FromConsole():
+        result = Settings()
+        def bool_conv(s):
+            if s.lower() in "y t true yes".split():
+                return True
+            if s.lower() in "n f false no".split():
+                return False
+            raise ValueError("Response " + s + " not understood.")
+
+        for name, type_, default, descr in settings_lst:
+            conv = type_
+            if type_ == bool:
+                descr += " [Y/n]" if default else " [N/y]>"
+                conv = bool_conv
+            else:
+                descr = f"{descr} (default: {default}) >"
+
+            while True:
+                try:
+                    print(descr)
+                    val = conv(input())
+                    result[name] = val
+                    break
+                except ValueError as e:
+                    print(e.message)
+
+        return result
+
 
     def __getitem__(self, key):
         return self.settings[key]
