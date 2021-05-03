@@ -44,6 +44,7 @@ logo = """
   @@@(                                               
   @@@                                                                                               
                                                                                                    """
+
 print(logo)
 print("This program means business!")
 print()

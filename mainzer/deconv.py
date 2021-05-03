@@ -64,7 +64,7 @@ def estimate_intensities(mz,
     if verbose:
         print("Assigning isotopic envelope peaks to real signal centroids.")
 
-    full_envelopes = isotopic_envelopes.to_frame(ions.query("neighbourhood_intensity > 0").index)
+    full_envelopes = isotopic_envelopes.to_frame(ions[ions.neighbourhood_intensity > 0].index)
     peak_assignments = centroids.point_query(full_envelopes.isospec_mz)
     peak_assignments = pd.concat([full_envelopes.iloc[peak_assignments.index],
                                   peak_assignments], axis=1)

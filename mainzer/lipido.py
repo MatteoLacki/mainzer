@@ -34,7 +34,7 @@ def get_lipido_ions(molecules,
         pd.DataFrame: A data.frame with columns "name", "formula", and "charge": the general input for intensity estimation algorithms.
     """
     assert all(col in molecules.columns for col in ("group","name","sequence_or_formula")), "The csv with molecules should have columns 'group', 'name', and 'sequence'."
-    proteins = molecules.query("group == 'protein'")
+    proteins = molecules[molecules.group == "protein"]
     protein_formulas = []
     for seq in proteins.sequence_or_formula:
         formula = aa2str(seq)
@@ -43,7 +43,8 @@ def get_lipido_ions(molecules,
         #     protein_formulas.append(seq)
 
     proteins = dict(zip(proteins.name, protein_formulas))
-    lipids = molecules.query("group == 'lipid'")
+
+    lipids = molecules[molecules.group == "lipid"]
     lipids = dict(zip(lipids.name, lipids.sequence_or_formula))
 
     lipid_mers = dict(iter_mered_molecules(lipids, max_lipid_mers))
@@ -56,8 +57,7 @@ def get_lipido_ions(molecules,
     return ions
 
 
-def lipido_main(settings, do_prints = True):
-
+def lipido_main(settings):
     analysis_time = datetime.now().strftime('lipido__date_%Y_%m_%d_time_%H_%M_%S')
     molecules = pd.read_csv(settings['path_molecules'])
     mz, intensity = read(settings['path_spectrum'])
@@ -65,10 +65,11 @@ def lipido_main(settings, do_prints = True):
     output_folder = pathlib.Path(settings['output_folder'])
     output_folder.mkdir(parents=True, exist_ok=True)
     (output_folder/analysis_time).mkdir(parents=True, exist_ok=True)
+    verbose = settings.settings["verbose"]
 
 #    mz, intensity = mz[intensity > settings["min_intensity"]], intensity[intensity > settings["min_intensity"]]
 
-    if do_prints:
+    if verbose:
         print()
         print("Running Lipido with:")
         settings.print_summary()
@@ -78,11 +79,11 @@ def lipido_main(settings, do_prints = True):
         print("Getting ions")
     ions = get_lipido_ions(molecules, **(settings.settings))
 
-    if do_prints:
+    if verbose:
         print("Baseline correction")
 
     mz, intensity = strip_baseline(mz, intensity, settings["min_intensity"])
-    if do_prints:
+    if verbose:
         print("Estimating intenisities")
 
     ions, centroids, timings  = estimate_intensities(mz, intensity, ions, verbose_output=False, **(settings.settings))
@@ -106,13 +107,12 @@ def lipido_main(settings, do_prints = True):
                          "max_isospec_mz"])
 
     ions = ions[column_order]
-    protein_names = "|".join(molecules.query("group == 'protein'").name)
-    (_, proteins), (_, lipid_clusters) = ions.groupby(ions.name.str.contains(protein_names), group_keys=False)
+    protein_names = "|".join(molecules[molecules.group == "protein"].name)
+    (_, lipid_clusters), (_, proteins) = ions.groupby(ions.name.str.contains(protein_names), group_keys=False)
 
     final_folder = output_folder/analysis_time
-    # ions.to_csv(/"ions.csv")
 
-    if do_prints:
+    if verbose:
         print("Saving results")
 
     proteins.to_csv(final_folder/"proteins.csv")
@@ -125,6 +125,6 @@ def lipido_main(settings, do_prints = True):
         json.dump(settings.settings, jsonfile, indent=4)
     settings.save_toml(final_folder/"config.mainzer")
 
-    if do_prints:
+    if verbose:
         print("Thank you for letting Lipido do its job!")
 
