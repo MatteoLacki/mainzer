@@ -6,6 +6,8 @@ import dash_html_components as html
 from dash.dependencies import Output, Input, State
 import dash_table
 
+import plotly.express as px
+
 import pandas as pd
 import io
 import base64
@@ -45,8 +47,6 @@ app.layout = html.Div([
         style=styles["upload"],
         multiple=True
     ),
-# TODO NEED TO CONSIDER HOW TO UPLOAD A BINARY FILE LIKE A ZIP
-
     html.Div(id='output-data-upload',
              style={'width':"50%"}),
     dcc.Upload(
@@ -100,15 +100,12 @@ def parse_upload(contents, filename, date):
             df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
         elif filename.lower().endswith('.xls'):
             df = pd.read_excel(io.BytesIO(decoded))
-        elif filename.lower().endswith('.mzml'):
-            import pyteomics.mzml
-            import pyteomics.mzxml
-            test = pyteomics.mzml.read(io.BytesIO(decoded))
-            data = next(test)
+        elif filename.lower().endswith('.mzml') or filename.lower().endswith('.mzxml'):
+            import pyteomics.mzml, pyteomics.mzxml
+            reader = pyteomics.mzml.read if filename.lower().endswith('.mzml') else pyteomics.mzxml.read
+            data = next(reader(io.BytesIO(decoded)))
             df = pd.DataFrame({"mz":data['m/z array'],
                                "intensity":data['intensity array']})
-            print(df)
-            # data['m/z array'], data['intensity array']
     except Exception as e:
         print(e)
         return html.Div([
@@ -177,21 +174,22 @@ def update_output2(list_of_contents, list_of_names, list_of_dates):
         State("underfitting_quantile", "value")
     ]
 )
-def number_render(n_clicks,
-                  # molecules_csv,
-                  # spectrum,
-                  min_intensity, 
-                  max_lipid_mers,
-                  min_protein_charge,
-                  max_protein_charge,
-                  min_lipid_charge,
-                  max_lipid_charge,
-                  isotopic_coverage,
-                  isotopic_bin_size,
-                  neighbourhood_thr,
-                  underfitting_quantile):
+def do_what_lipido_does(n_clicks,
+                        # molecules_csv,
+                        # spectrum,
+                        min_intensity, 
+                        max_lipid_mers,
+                        min_protein_charge,
+                        max_protein_charge,
+                        min_lipid_charge,
+                        max_lipid_charge,
+                        isotopic_coverage,
+                        isotopic_bin_size,
+                        neighbourhood_thr,
+                        underfitting_quantile):
     print(locals())
-    return locals()
+    # ....
+    # return html.div(dcc.Download())
 
 
 
