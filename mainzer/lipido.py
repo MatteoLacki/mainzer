@@ -12,6 +12,7 @@ aa2str = lambda aa: atom2str(aa2atom(aa))
 
 from .molecule_ops import iter_mered_molecules, crosslink, molecules2df
 
+
 def get_lipido_ions(molecules,
                     max_lipid_mers,
                     min_lipid_charge,

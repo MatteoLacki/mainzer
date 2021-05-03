@@ -34,6 +34,12 @@ class RegressionGraph(nx.Graph):
         for cc in nx.connected_components(self):
             yield self.subgraph(cc)
 
+    def count_connected_components(self):
+        i = 0
+        for cc in nx.connected_components(self):
+            i += 1
+        return i
+
     def count_nodes_in_subproblems(self):
         problem_size = lambda x: "interval_cnt" if isinstance(x, int) else "charged_formula_cnt"
         return pd.DataFrame(collections.Counter(problem_size(e) for e in cc) for cc in nx.connected_components(self))

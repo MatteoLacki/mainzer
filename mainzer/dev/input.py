@@ -1,6 +1,10 @@
+%load_ext autoreload
+%autoreload 2
+
 import json
 import pandas as pd
 import numpy as np
+import tqdm
 
 with open("mainzer/dev/settings.json") as f:
     settings = json.load(f)
@@ -24,7 +28,10 @@ isotopic_bin_size=.1
 neighbourhood_thr=1.1
 underfitting_quantile=0.05
 fitting_to_void_penalty=1.0
-verbose=False
+verbose=True
 verbose_output=True
-
 pd.set_option('display.max_columns', None)
+
+
+# /home/matteo/Projects/och_Kallol/unlipid/data/test/molecules.csv
+# /home/matteo/Projects/och_Kallol/unlipid/data/07232020_Resolution50000_64bit.mzML
