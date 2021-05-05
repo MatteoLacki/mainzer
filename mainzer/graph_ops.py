@@ -65,7 +65,7 @@ class RegressionGraph(nx.Graph):
 
     def iter_regression_problems(self, merge_zeros=True, normalize_X=True):
         for cc in self.connected_components():
-            yield bipartiteGraph2regressionProblem(cc, merge_zeros=merge_zeros)
+            yield bipartiteGraph2regressionProblem(cc, merge_zeros=merge_zeros, normalize_X=normalize_X)
 
     def intensities(self):
         return nx.get_node_attributes(self, "intensity")
