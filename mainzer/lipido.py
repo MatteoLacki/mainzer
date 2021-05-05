@@ -1,25 +1,22 @@
-import pathlib
 from datetime import datetime
 import json
 import pandas as pd
+import pathlib
 
-from .read import read
-from .deconv import estimate_intensities
 from .baseline import strip_baseline
+from .deconv import estimate_intensities
 from .ion_generators import get_lipido_ions
+from .read import read
 
 
 def lipido_main(settings):
     analysis_time = datetime.now().strftime('lipido__date_%Y_%m_%d_time_%H_%M_%S')
     molecules = pd.read_csv(settings['path_molecules'])
     mz, intensity = read(settings['path_spectrum'])
-#    output_folder = pathlib.Path(input("Ouput folder: ")).expanduser()
     output_folder = pathlib.Path(settings['output_folder'])
     output_folder.mkdir(parents=True, exist_ok=True)
     (output_folder/analysis_time).mkdir(parents=True, exist_ok=True)
     verbose = settings.settings["verbose"]
-
-#    mz, intensity = mz[intensity > settings["min_intensity"]], intensity[intensity > settings["min_intensity"]]
 
     if verbose:
         print()
@@ -31,12 +28,14 @@ def lipido_main(settings):
         print("Getting ions")
     ions = get_lipido_ions(molecules, **(settings.settings))
 
-    if verbose:
-        print("Baseline correction")
+    # if verbose:
+    #     print("Baseline correction")
 
-    mz, intensity = strip_baseline(mz, intensity, settings["min_intensity"])
+    # mz, intensity = strip_baseline(mz, intensity, settings["min_intensity"])
+
+    
     if verbose:
-        print("Estimating intenisities")
+        print("Estimating intensities")
 
     ions, centroids, timings  = estimate_intensities(mz, intensity, ions, verbose_output=False, **(settings.settings))
 

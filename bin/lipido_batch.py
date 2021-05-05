@@ -23,4 +23,3 @@ for path_spectrum in glob.glob(settings["path_spectrum"]):
     settings["path_spectrum"] = str(path_spectrum)
     settings['output_folder'] = str(pathlib.Path(path_spectrum.stem) / "output")
     lipido_main(settings)
-    # save settings in each folder with its run specific settings?

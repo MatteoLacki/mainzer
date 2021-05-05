@@ -29,7 +29,7 @@ def get_lipido_ions(molecules,
     """
     assert all(col in molecules.columns for col in ("group","name","sequence_or_formula")), "The csv with molecules should have columns 'group', 'name', and 'sequence'."
     proteins = molecules.query("group == 'protein'")
-    protein_formulas = [fasta_2_formula(seq) for fasta in proteins.sequence_or_formula]
+    protein_formulas = [fasta_2_formula(fasta) for fasta in proteins.sequence_or_formula]
     proteins = dict(zip(proteins.name, protein_formulas))
 
     lipids = molecules.query("group == 'lipid'")

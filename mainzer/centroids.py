@@ -5,13 +5,8 @@ from .intervals import IntervalQuery
 
 
 class Centroids(object):
-    def __init__(self, mz, intensity):
-        self.mz = np.array(mz)
-        self.intensity = np.array(intensity)
-        self.df = cluster_spectrum(mz, intensity).drop(['left_idx','right_idx'], axis=1)
-        self.df.index.name = 'cluster'
-        # it is important to add the self.df.index:
-        # otherwise the df.loc won't work, if we somehow filtered df. 
+    def __init__(self, clustered_spectrum_df):
+        self.df = clustered_spectrum_df
         self.index = IntervalQuery(self.df.left_mz, self.df.right_mz, self.df.index)
 
     def __repr__(self):
