@@ -166,7 +166,7 @@ def estimate_intensities(mz,
         centroids.df["under_estimate_remainder"] = centroids.df.I_sum - centroids.df.under_estimate
 
 
-        assert np.all(ions.maximal_intensity >= ions.deconvolved_intensity), "Maximal estimates lower than deconvolved!"
+        # assert np.all(ions.maximal_intensity >= ions.deconvolved_intensity), "Maximal estimates lower than deconvolved!"
         timer('fitting models')
 
 
