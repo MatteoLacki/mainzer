@@ -8,6 +8,7 @@ fasta_2_formula = lambda aa: aa2atom.atom2str(aa2atom.aa2atom(aa))
 
 
 def get_lipido_ions(molecules,
+                    #TODO max_protein_mers,
                     max_lipid_mers,
                     min_lipid_charge,
                     max_lipid_charge,
@@ -18,6 +19,7 @@ def get_lipido_ions(molecules,
 
     Arguments:
         molecules (pd.DataFrame): A data frame with columns "group", "name", and "sequence_or_formula".
+        max_protein_mers (int):
         max_lipid_mers (int): 
         min_lipid_charge (int):
         max_lipid_charge (int):
@@ -31,14 +33,16 @@ def get_lipido_ions(molecules,
     proteins = molecules.query("group == 'protein'")
     protein_formulas = [fasta_2_formula(fasta) for fasta in proteins.sequence_or_formula]
     proteins = dict(zip(proteins.name, protein_formulas))
+    #TODO: ? proteins_mers = dict(crosslink(proteins, proteins))
 
     lipids = molecules.query("group == 'lipid'")
     lipids = dict(zip(lipids.name, lipids.sequence_or_formula))
     lipid_mers = dict(iter_mered_molecules(lipids, max_lipid_mers))
     lipid_protein_mers = dict(crosslink(lipid_mers, proteins))
 
+
     ions = pd.concat([molecules2df(lipid_mers, range(min_lipid_charge, max_lipid_charge+1)),
-                      molecules2df(proteins, range(min_protein_charge, max_protein_charge+1)),
+                      molecules2df(proteins, range(min_protein_charge, max_protein_charge+1)), #TODO: change to proteins_mers
                       molecules2df(lipid_protein_mers, range(min_protein_charge, max_protein_charge+1))],
                       ignore_index=True)
     return ions
