@@ -5,7 +5,7 @@ import pathlib
 
 from .baseline import strip_baseline
 from .centroiding import centroid_spectrum
-from .deconv import single_molecule_regression, multiple_molecule_regression
+
 from .ion_generators import get_lipido_ions
 from .read import read
 
@@ -64,8 +64,9 @@ def run_lipido(# spectrum preprocessing
                # multiple molecule regression
                deconvolve,
                fitting_to_void_penalty,
-               # 
+               # verbosity might be removed in favor of a logger
                verbose=False):
+
     #TODO: wrap functions into some logger to get this right and time it.
     if verbose:
         print("Getting ions")
@@ -91,7 +92,7 @@ def run_lipido(# spectrum preprocessing
 
     if verbose:
         print("Performing singe molecule deconvolution.")
-    ions, centroids, peak_assignments_clustered, peak_assignments_summary =
+    ions, centroids, peak_assignments_clustered, peak_assignments_summary = \
         single_molecule_regression( centroids,
                                     ions,
                                     isotopic_coverage,

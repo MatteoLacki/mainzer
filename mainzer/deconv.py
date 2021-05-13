@@ -115,6 +115,8 @@ def multiple_molecule_regression(ions,
                                  peak_assignments_summary,
                                  fitting_to_void_penalty=1.0,
                                  verbose=False):
+    ion_idx = ['formula','charge']
+
     if verbose:
         print("Building deconvolution graph.")
 
