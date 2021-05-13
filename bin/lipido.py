@@ -5,9 +5,7 @@ import json
 
 import IsoSpecPy # Not used, here, but to make sure pyinstaller pulls it in
 
-from mainzer.read import read
 from mainzer.lipido import lipido_main
-from mainzer.deconv import estimate_intensities
 from mainzer.settings import Settings
 
 

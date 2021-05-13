@@ -28,10 +28,10 @@ setup(  name='mainzer',
                           'pyteomics',
                           'matplotlib',
                           'aa2atom',
-                          'nogui',
                           'toml'],
         scripts = [
             'bin/lipido.py',
-            'bin/mainz.py'
+            'bin/mainzer.py',
+            'bin/lipido_batch.py',
         ]
 )

@@ -1,73 +1,22 @@
-import pathlib
 from datetime import datetime
 import json
 import pandas as pd
-from aa2atom import aa2atom, atom2str
-from mainzer.read import read
-from mainzer.deconv import estimate_intensities
-from mainzer.settings import Settings
-from mainzer.baseline import strip_baseline
+import pathlib
 
-aa2str = lambda aa: atom2str(aa2atom(aa))
-
-from .molecule_ops import iter_mered_molecules, crosslink, molecules2df
-
-
-def get_lipido_ions(molecules,
-                    max_lipid_mers,
-                    min_lipid_charge,
-                    max_lipid_charge,
-                    min_protein_charge,
-                    max_protein_charge,
-                    **kwargs):
-    """Get a set of ions for lipido.
-
-    Arguments:
-        molecules (pd.DataFrame): A data frame with columns "group", "name", and "sequence_or_formula".
-        max_lipid_mers (int): 
-        min_lipid_charge (int):
-        max_lipid_charge (int):
-        min_protein_charge (int):
-        max_protein_charge (int):
-        **kwargs: other key-world arguments.
-    Returns:
-        pd.DataFrame: A data.frame with columns "name", "formula", and "charge": the general input for intensity estimation algorithms.
-    """
-    assert all(col in molecules.columns for col in ("group","name","sequence_or_formula")), "The csv with molecules should have columns 'group', 'name', and 'sequence'."
-    proteins = molecules[molecules.group == "protein"]
-    protein_formulas = []
-    for seq in proteins.sequence_or_formula:
-        formula = aa2str(seq)
-        protein_formulas.append(formula)
-        # except Exception:
-        #     protein_formulas.append(seq)
-
-    proteins = dict(zip(proteins.name, protein_formulas))
-
-    lipids = molecules[molecules.group == "lipid"]
-    lipids = dict(zip(lipids.name, lipids.sequence_or_formula))
-
-    lipid_mers = dict(iter_mered_molecules(lipids, max_lipid_mers))
-    lipid_protein_mers = dict(crosslink(lipid_mers, proteins))
-
-    ions = pd.concat([molecules2df(lipid_mers, range(min_lipid_charge, max_lipid_charge+1)),
-                      molecules2df(proteins, range(min_protein_charge, max_protein_charge+1)),
-                      molecules2df(lipid_protein_mers, range(min_protein_charge, max_protein_charge+1))],
-                      ignore_index=True)
-    return ions
+from .baseline import strip_baseline
+from .deconv import estimate_intensities
+from .ion_generators import get_lipido_ions
+from .read import read
 
 
 def lipido_main(settings):
     analysis_time = datetime.now().strftime('lipido__date_%Y_%m_%d_time_%H_%M_%S')
     molecules = pd.read_csv(settings['path_molecules'])
     mz, intensity = read(settings['path_spectrum'])
-#    output_folder = pathlib.Path(input("Ouput folder: ")).expanduser()
     output_folder = pathlib.Path(settings['output_folder'])
     output_folder.mkdir(parents=True, exist_ok=True)
     (output_folder/analysis_time).mkdir(parents=True, exist_ok=True)
     verbose = settings.settings["verbose"]
-
-#    mz, intensity = mz[intensity > settings["min_intensity"]], intensity[intensity > settings["min_intensity"]]
 
     if verbose:
         print()
@@ -79,12 +28,14 @@ def lipido_main(settings):
         print("Getting ions")
     ions = get_lipido_ions(molecules, **(settings.settings))
 
-    if verbose:
-        print("Baseline correction")
+    # if verbose:
+    #     print("Baseline correction")
 
-    mz, intensity = strip_baseline(mz, intensity, settings["min_intensity"])
+    # mz, intensity = strip_baseline(mz, intensity, settings["min_intensity"])
+
+    
     if verbose:
-        print("Estimating intenisities")
+        print("Estimating intensities")
 
     ions, centroids, timings  = estimate_intensities(mz, intensity, ions, verbose_output=False, **(settings.settings))
 
@@ -121,6 +72,8 @@ def lipido_main(settings):
 
     with open(final_folder/"timings.json", "w") as jsonfile:
         json.dump(timings, jsonfile, indent=4)
+
+    # stop outputting jsons?
     with open(final_folder/"settings.json", "w") as jsonfile:
         json.dump(settings.settings, jsonfile, indent=4)
     settings.save_toml(final_folder/"config.mainzer")

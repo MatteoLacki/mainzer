@@ -163,4 +163,5 @@ def cluster_spectrum(mz, intensity):
     clustered_spectrum["left_idx"], clustered_spectrum["right_idx"] = get_cluster_ends(mz_clusters)
     clustered_spectrum["left_mz"] = mz[clustered_spectrum.left_idx]
     clustered_spectrum["right_mz"] = mz[clustered_spectrum.right_idx]
+    clustered_spectrum.index.name = 'cluster'
     return clustered_spectrum

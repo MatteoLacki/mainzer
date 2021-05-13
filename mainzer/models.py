@@ -3,6 +3,10 @@ import pandas as pd
 import scipy.optimize
 # import sklearn.linear_model
 
+def fit_polynomial(x, y, deg):
+    coefs = np.polyfit(x, y, deg)
+    return np.poly1d(coefs), coefs
+
 
 class LinearModel(object):
     def __init__(self, **kwds):

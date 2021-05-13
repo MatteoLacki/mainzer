@@ -53,10 +53,10 @@ class Settings:
         for name, type_, default, descr in settings_list:
             conv = type_
             if type_ == bool:
-                descr += " [Y/n] >" if default else " [N/y] >"
+                descr += " [Y/n] >" if default else " [N/y] > "
                 conv = bool_conv
             else:
-                descr = f"{descr} (default: {default}) >"
+                descr = f"{descr} (default: {default}) > "
 
             while True:
                 try:
