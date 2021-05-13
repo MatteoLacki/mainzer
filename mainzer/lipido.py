@@ -7,9 +7,13 @@ from .baseline import strip_baseline
 from .deconv import estimate_intensities
 from .ion_generators import get_lipido_ions
 from .read import read
+from .centroiding import centroid_spectrum
 
 
-def lipido_main(settings):
+def lipido_IO(settings):
+    """ 
+    Read in necessary data and saves the outputs.
+    """
     analysis_time = datetime.now().strftime('lipido__date_%Y_%m_%d_time_%H_%M_%S')
     molecules = pd.read_csv(settings['path_molecules'])
     mz, intensity = read(settings['path_spectrum'])
@@ -25,19 +29,43 @@ def lipido_main(settings):
         print()
         print("It's business time!")
 
+    proteins, lipid_clusters, centroids = \
+        run_lipido(mz, intensity, molecules, verbose,
+                   settings_dict=settings.settings)
+
+    final_folder = output_folder/analysis_time
+
+    if verbose:
+        print("Saving results.")
+    proteins.to_csv(final_folder/"proteins.csv")
+    lipid_clusters.to_csv(final_folder/"lipid_clusters.csv")
+    centroids.df.to_csv(final_folder/"centroids.csv")
+    settings.save_toml(final_folder/"config.mainzer")
+
+    if verbose:
+        print("Thank you for letting Lipido do its job!")
+
+
+
+def run_lipido(mz, intensity, molecules, verbose, settings_dict):
+    #TODO: wrap functions into some logger to get this right and time it.
+    if verbose:
         print("Getting ions")
-    ions = get_lipido_ions(molecules, **(settings.settings))
+    ions = get_lipido_ions(molecules, **settings_dict)
 
-    # if verbose:
-    #     print("Baseline correction")
+    if verbose:
+        print("Baseline correction")
+    # mz, intensity = strip_baseline(mz, intensity, settings["min_intensity"])    
 
-    # mz, intensity = strip_baseline(mz, intensity, settings["min_intensity"])
+    if verbose:
+        print("Centroiding")
+    centroids = centroid_spectrum(mz, intensity)
 
-    
     if verbose:
         print("Estimating intensities")
-
-    ions, centroids, timings  = estimate_intensities(mz, intensity, ions, verbose_output=False, **(settings.settings))
+    ions, centroids = estimate_intensities(centroids,
+                                           ions,
+                                           **settings_dict)
 
     column_order = ["name"]
     if "deconvolved_intensity" in ions.columns:
@@ -61,23 +89,6 @@ def lipido_main(settings):
     protein_names = "|".join(molecules[molecules.group == "protein"].name)
     (_, lipid_clusters), (_, proteins) = ions.groupby(ions.name.str.contains(protein_names), group_keys=False)
 
-    final_folder = output_folder/analysis_time
+    return proteins, lipid_clusters, centroids
 
-    if verbose:
-        print("Saving results")
-
-    proteins.to_csv(final_folder/"proteins.csv")
-    lipid_clusters.to_csv(final_folder/"lipid_clusters.csv")
-    centroids.df.to_csv(final_folder/"centroids.csv")
-
-    with open(final_folder/"timings.json", "w") as jsonfile:
-        json.dump(timings, jsonfile, indent=4)
-
-    # stop outputting jsons?
-    with open(final_folder/"settings.json", "w") as jsonfile:
-        json.dump(settings.settings, jsonfile, indent=4)
-    settings.save_toml(final_folder/"config.mainzer")
-
-    if verbose:
-        print("Thank you for letting Lipido do its job!")
 

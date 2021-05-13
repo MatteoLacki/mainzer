@@ -1,4 +1,4 @@
-from mainzer.models import fit_polynomial
+from .models import fit_polynomial
 
 
 def get_mz2dmz(mzs, resolutions):
@@ -21,5 +21,3 @@ def trim_low_intense_peaks(mz, intensity, cut_off):
         cut_off (float):
     """
     return mz[intensity >= cut_off], intensity[intensity >= cut_off]
-
-

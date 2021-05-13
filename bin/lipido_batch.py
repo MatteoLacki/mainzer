@@ -4,7 +4,7 @@ import os
 import pathlib
 import sys
 
-from mainzer.lipido import lipido_main
+from mainzer.lipido import lipido_IO
 from mainzer.settings import Settings
 
 ap = argparse.ArgumentParser(description='Analyze batch input with lipido.',
@@ -22,4 +22,4 @@ for path_spectrum in glob.glob(settings["path_spectrum"]):
     path_spectrum = pathlib.Path(path_spectrum)
     settings["path_spectrum"] = str(path_spectrum)
     settings['output_folder'] = str(pathlib.Path(path_spectrum.stem) / "output")
-    lipido_main(settings)
+    lipido_IO(settings)

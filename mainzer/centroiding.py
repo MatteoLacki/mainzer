@@ -40,3 +40,12 @@ class Centroids(object):
         if use_df_index:
             res = res.set_index('cluster', append=True)
         return res 
+
+
+def centroid_spectrum(mz, intensity):
+    clustered_spectrum_df = cluster_spectrum(mz, intensity)
+    return Centroids(clustered_spectrum_df)
+
+#TODO: add centroiding that would include information about what we are fitting.
+# The problem now is, that if we fit individual isotopic peaks, then we should fit to clusters. And if we fit whole groups of peaks, it should fit the structure.. that's what is better solved with Masserstein.
+

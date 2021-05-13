@@ -5,7 +5,7 @@ import json
 
 import IsoSpecPy # Not used, here, but to make sure pyinstaller pulls it in
 
-from mainzer.lipido import lipido_main
+from mainzer.lipido import lipido_IO
 from mainzer.settings import Settings
 
 
@@ -51,4 +51,4 @@ print()
 
 settings = Settings.FromConsole()
 settings['output_folder'] = str(pathlib.Path(input("Ouput folder: ")).expanduser())
-lipido_main(settings)
+lipido_IO(settings)
