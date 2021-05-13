@@ -5,7 +5,7 @@ import pathlib
 
 from .baseline import strip_baseline
 from .centroiding import centroid_spectrum
-
+from .deconv import single_molecule_regression, multiple_molecule_regression
 from .ion_generators import get_lipido_ions
 from .read import read
 
@@ -30,7 +30,7 @@ def lipido_IO(settings):
         print("It's business time!")
 
     proteins, lipid_clusters, centroids = \
-        run_lipido(mz, intensity, molecules, verbose, **settings.settings)
+        run_lipido(mz, intensity, molecules, **settings.settings)
 
     final_folder = output_folder/analysis_time
 
@@ -65,7 +65,8 @@ def run_lipido(# spectrum preprocessing
                deconvolve,
                fitting_to_void_penalty,
                # verbosity might be removed in favor of a logger
-               verbose=False):
+               verbose=False,
+               **kwds):
 
     #TODO: wrap functions into some logger to get this right and time it.
     if verbose:
