@@ -51,6 +51,7 @@ def run_lipido(# spectrum preprocessing
                intensity,
                # get_lipido_ions
                molecules,
+               max_protein_mers,
                max_lipid_mers,
                min_lipid_charge,
                max_lipid_charge,
@@ -73,6 +74,7 @@ def run_lipido(# spectrum preprocessing
         print("Getting ions")
 
     ions = get_lipido_ions( molecules,
+                            max_protein_mers,
                             max_lipid_mers,
                             min_lipid_charge,
                             max_lipid_charge,

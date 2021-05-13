@@ -35,5 +35,5 @@ verbose = True
 from mainzer.ion_generators import get_lipido_ions
 from mainzer.centroiding import centroid_spectrum
 from mainzer.deconv import single_molecule_regression, multiple_molecule_regression
-
+pd.options.display.max_columns = None
 
