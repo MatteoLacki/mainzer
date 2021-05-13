@@ -31,7 +31,6 @@ setup(  name='mainzer',
                           'toml'],
         scripts = [
             'bin/lipido.py',
-            'bin/mainzer.py',
             'bin/lipido_batch.py',
         ]
 )

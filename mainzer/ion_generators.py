@@ -39,10 +39,11 @@ def get_lipido_ions(molecules,
         formula = protein_dict
         for n in range(1, max_protein_mers+1):
             rname = name if n == 1 else str(n) + "meric-" + name
-            pmers_lst.append(molecules2df({rname: aa2atom.atom2str(formula)}, n*min_protein_charge, n*max_protein_charge+1))
+            pmers_lst.append(molecules2df({rname: aa2atom.atom2str(formula)}, range(n*min_protein_charge, n*max_protein_charge+1)))
             formula = formula + protein_dict
 
-
+    protein_formulas = [fasta_2_formula(fasta) for fasta in proteins.sequence_or_formula]
+    proteins = dict(zip(proteins.name, protein_formulas))
     lipids = molecules.query("group == 'lipid'")
     lipids = dict(zip(lipids.name, lipids.sequence_or_formula))
     lipid_mers = dict(iter_mered_molecules(lipids, max_lipid_mers))
