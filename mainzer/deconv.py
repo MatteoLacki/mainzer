@@ -102,7 +102,7 @@ def single_molecule_regression(centroids,
     ions.touched_centroids = ions.touched_centroids.astype(int)
     ions.isospec_prob_without_signal = np.where(ions.isospec_prob_without_signal.isna(), ions.isospec_final_coverage, ions.isospec_prob_without_signal)
 
-    return  (ions, 
+    return ( ions, 
              centroids,
              peak_assignments_clustered,
              peak_assignments_summary )

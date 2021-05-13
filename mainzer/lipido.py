@@ -4,10 +4,10 @@ import pandas as pd
 import pathlib
 
 from .baseline import strip_baseline
-from .deconv import estimate_intensities
+from .centroiding import centroid_spectrum
+from .deconv import single_molecule_regression, multiple_molecule_regression
 from .ion_generators import get_lipido_ions
 from .read import read
-from .centroiding import centroid_spectrum
 
 
 def lipido_IO(settings):
@@ -30,8 +30,7 @@ def lipido_IO(settings):
         print("It's business time!")
 
     proteins, lipid_clusters, centroids = \
-        run_lipido(mz, intensity, molecules, verbose,
-                   settings_dict=settings.settings)
+        run_lipido(mz, intensity, molecules, verbose, **settings.settings)
 
     final_folder = output_folder/analysis_time
 
@@ -46,15 +45,44 @@ def lipido_IO(settings):
         print("Thank you for letting Lipido do its job!")
 
 
-
-def run_lipido(mz, intensity, molecules, verbose, settings_dict):
+# defaults are set in settings.py! no need to repeat them here.
+def run_lipido(# spectrum preprocessing
+               mz,
+               intensity,
+               # get_lipido_ions
+               molecules,
+               max_lipid_mers,
+               min_lipid_charge,
+               max_lipid_charge,
+               min_protein_charge,
+               max_protein_charge,
+               # single molecule regression
+               isotopic_coverage,
+               isotopic_bin_size,
+               neighbourhood_thr,
+               underfitting_quantile,
+               # multiple molecule regression
+               deconvolve,
+               fitting_to_void_penalty,
+               # 
+               verbose=False):
     #TODO: wrap functions into some logger to get this right and time it.
     if verbose:
         print("Getting ions")
-    ions = get_lipido_ions(molecules, **settings_dict)
 
-    if verbose:
-        print("Baseline correction")
+    ions = get_lipido_ions( molecules,
+                            max_lipid_mers,
+                            min_lipid_charge,
+                            max_lipid_charge,
+                            min_protein_charge,
+                            max_protein_charge )
+
+    #TODO: add here spectrum preprocessing:
+    #   intensity based thresholds
+    #   m/z filter [maybe this should be part of centroiding to avoid cuttring them???]
+
+    # if verbose:
+    #     print("Baseline correction")
     # mz, intensity = strip_baseline(mz, intensity, settings["min_intensity"])    
 
     if verbose:
@@ -62,10 +90,30 @@ def run_lipido(mz, intensity, molecules, verbose, settings_dict):
     centroids = centroid_spectrum(mz, intensity)
 
     if verbose:
-        print("Estimating intensities")
-    ions, centroids = estimate_intensities(centroids,
-                                           ions,
-                                           **settings_dict)
+        print("Performing singe molecule deconvolution.")
+    ions, centroids, peak_assignments_clustered, peak_assignments_summary =
+        single_molecule_regression( centroids,
+                                    ions,
+                                    isotopic_coverage,
+                                    isotopic_bin_size,
+                                    neighbourhood_thr,
+                                    underfitting_quantile,
+                                    verbose )
+    
+    # here we need some filtering of ions
+
+    if deconvolve:
+        if verbose:
+            print("Performing multiple molecule deconvolution.")
+        ions, centroids, peak_assignments_clustered, G, convoluted_ions, models = \
+            multiple_molecule_regression( ions,
+                                          centroids,
+                                          peak_assignments_clustered, 
+                                          peak_assignments_summary,
+                                          fitting_to_void_penalty,
+                                          verbose )
+
+    #TODO: additional tagging of ions based on found results.
 
     column_order = ["name"]
     if "deconvolved_intensity" in ions.columns:
