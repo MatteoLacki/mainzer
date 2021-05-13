@@ -8,7 +8,7 @@ fasta_2_formula = lambda aa: aa2atom.atom2str(aa2atom.aa2atom(aa))
 
 
 def get_lipido_ions(molecules,
-                    #TODO max_protein_mers,
+                    max_protein_mers,
                     max_lipid_mers,
                     min_lipid_charge,
                     max_lipid_charge,
@@ -31,9 +31,17 @@ def get_lipido_ions(molecules,
     """
     assert all(col in molecules.columns for col in ("group","name","sequence_or_formula")), "The csv with molecules should have columns 'group', 'name', and 'sequence'."
     proteins = molecules.query("group == 'protein'")
-    protein_formulas = [fasta_2_formula(fasta) for fasta in proteins.sequence_or_formula]
-    proteins = dict(zip(proteins.name, protein_formulas))
-    #TODO: ? proteins_mers = dict(crosslink(proteins, proteins))
+    protein_dicts = [aa2atom.aa2atom(fasta) for fasta in proteins.sequence_or_formula]
+
+    pmers_lst = []
+    # Only allowing straight mers, not complexes of different proteins
+    for name, protein_dict in zip(proteins.name, protein_dicts):
+        formula = protein_dict
+        for n in range(1, max_protein_mers+1):
+            rname = name if n == 1 else str(n) + "meric-" + name
+            pmers_lst.append(molecules2df({rname: aa2atom.atom2str(formula)}, n*min_protein_charge, n*max_protein_charge+1))
+            formula = formula + protein_dict
+
 
     lipids = molecules.query("group == 'lipid'")
     lipids = dict(zip(lipids.name, lipids.sequence_or_formula))
@@ -42,8 +50,8 @@ def get_lipido_ions(molecules,
 
 
     ions = pd.concat([molecules2df(lipid_mers, range(min_lipid_charge, max_lipid_charge+1)),
-                      molecules2df(proteins, range(min_protein_charge, max_protein_charge+1)), #TODO: change to proteins_mers
-                      molecules2df(lipid_protein_mers, range(min_protein_charge, max_protein_charge+1))],
+                      molecules2df(lipid_protein_mers, range(min_protein_charge, max_protein_charge+1))] +\
+                      pmers_lst,
                       ignore_index=True)
     return ions
 

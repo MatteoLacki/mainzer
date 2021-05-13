@@ -7,6 +7,7 @@ settings_list = (
 ('path_spectrum',           str,    '*.mzML',           'Path to the spectrum (mzML, mzXML, csv). May contain an asterisk to match multiple files.'),
 ('path_molecules',          str,    'molecules.csv',    'Path to the file containing "ion seeds": molecules that give rise to all the ions we search for'),
 ('min_intensity',           float,  0.0,                'Threshold for intensities to consider [0.0<=x]'),
+('max_protein_mers',        int,    2,                  'Maximal oligomeric state of protein'),
 ('max_lipid_mers',          int,    4,                  'Maximal number of adducts'),
 ('min_protein_charge',      int,    1,                  'Minimal protein charge state'),
 ('max_protein_charge',      int,    10,                 'Maximal protein charge state'),
