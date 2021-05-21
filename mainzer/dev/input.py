@@ -44,7 +44,7 @@ import matplotlib.pyplot as plt
 mz, intensity = read(settings['path_spectrum'])
 clustered_spectrum_df = cluster_spectrum(mz, intensity)
 clustered_spectrum_df.eval("""dmz = right_mz - left_mz
-                           cluster_size = right_idx - left_idx+1
+                           cluster_size = right_idx - left_idx + 1
                            """, inplace=True)
 
 orbi_res = pd.read_csv("../resolution_measurements_50000.csv")
@@ -85,3 +85,7 @@ min_intensity_threshold = 100
 clustered_spectrum_df[clustered_spectrum_df.I_sum >= min_intensity_threshold]
 
 centroids = Centroids(clustered_spectrum_df)
+
+
+# 
+from mainzer.centroiding import centroid_spectrum

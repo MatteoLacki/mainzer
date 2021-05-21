@@ -126,16 +126,16 @@ def run_lipido(# spectrum preprocessing
     else:
         ions = ions.sort_values(['charge','maximal_intensity'], ascending=[True, False])
 
-    column_order.extend(["maximal_intensity",
-                         "proximity_intensity",
-                         "neighbourhood_intensity",
-                         "isospec_final_coverage",
-                         "isospec_prob_with_signal",
-                         "isospec_prob_without_signal",
-                         "touched_centroids",
-                         "isospec_peaks_count",
-                         "min_isospec_mz",
-                         "max_isospec_mz"])
+    column_order.extend([ "maximal_intensity",
+                          "proximity_intensity",
+                          "neighbourhood_intensity",
+                          "isospec_final_coverage",
+                          "isospec_prob_with_signal",
+                          "isospec_prob_without_signal",
+                          "touched_centroids",
+                          "isospec_peaks_count",
+                          "min_isospec_mz",
+                          "max_isospec_mz" ])
 
     ions = ions[column_order]
     protein_names = "|".join(molecules[molecules.group == "protein"].name)

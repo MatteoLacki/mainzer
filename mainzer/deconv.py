@@ -125,7 +125,7 @@ def multiple_molecule_regression(ions,
 
 
     if verbose:
-        print("Fitting multiple molecule regresssions.")
+        print("Fitting multiple molecule regressions.")
     iter_problems = G.iter_regression_problems(merge_zeros=True,
                                                normalize_X=False) # think about this normalization
 
