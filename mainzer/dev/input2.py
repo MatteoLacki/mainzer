@@ -44,8 +44,18 @@ ions.to_csv("test_ions.csv")
 import aa2atom
 from mainzer.molecule_ops import iter_mered_molecules, crosslink, molecules2df
 
-iter_mered_molecules(molecules)
-dict(crosslink(proteins, proteins))
+molecules = pd.read_csv("/home/matteo/Projects/och_Kallol/mainzer/test_data/molecules_big.csv")
+allowed_column_names = "group", "name", "sequence_or_formula", "min_mers", "max_mers"
+assert all(col in molecules.columns for col in allowed_column_names), f"The csv with molecules should have columns: {', '.join(allowed_column_names)}."
+proteins = molecules[molecules.group == "protein"]
+protein_formulas = dict(zip(proteins.name, 
+                            [aa2atom.aa2atom(fasta) for fasta in proteins.sequence_or_formula]))
+
+
+lipids = molecules.query("group == 'lipid'")
+lipids = dict(zip(lipids.name, lipids.sequence_or_formula))
+lipid_mers = dict(iter_mered_molecules(lipids, max_lipid_mers))
+lipid_protein_mers = dict(crosslink(lipid_mers, proteins))
 
 
 

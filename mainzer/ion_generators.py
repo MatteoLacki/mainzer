@@ -35,8 +35,6 @@ def get_lipido_ions(molecules,
     proteins = molecules[molecules.group == "protein"]
     protein_dicts = [aa2atom.aa2atom(fasta) for fasta in proteins.sequence_or_formula]
 
-
-
     pmers_lst = []
     # Only allowing straight mers, not complexes of different proteins
     for name, protein_dict in zip(proteins.name, protein_dicts):
