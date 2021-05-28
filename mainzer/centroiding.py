@@ -4,9 +4,9 @@ from .signal_ops import cluster_spectrum
 from .intervals import IntervalQuery
 
 
-class Centroids(object):
-    def __init__(self, clustered_spectrum_df):
-        self.df = clustered_spectrum_df
+class QueryCentroids(object):
+    def __init__(self, cluster_spectrum):
+        self.df = cluster_spectrum
         self.index = IntervalQuery(self.df.left_mz, self.df.right_mz, self.df.index)
 
     def __repr__(self):
@@ -42,9 +42,6 @@ class Centroids(object):
         return res 
 
 
-def centroid_spectrum(mz, intensity):
-    clustered_spectrum_df = cluster_spectrum(mz, intensity)
-    return Centroids(clustered_spectrum_df)
 
 #TODO: add centroiding that would include information about what we are fitting.
 # The problem now is, that if we fit individual isotopic peaks, then we should fit to clusters. And if we fit whole groups of peaks, it should fit the structure.. that's what is better solved with Masserstein.

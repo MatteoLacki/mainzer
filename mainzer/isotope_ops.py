@@ -50,6 +50,7 @@ class IsotopicEnvelopes(dict):
     def charged_envelopes_summary(self, formulas, charges):
         res = self.envelopes_summary(formulas)
         res["charge"] = charges
+
         res["min_isospec_mz"] = res.min_mass / res.charge + self.PROTON_MASS
         res["max_isospec_mz"] = res.max_mass / res.charge + self.PROTON_MASS
         res.drop(['min_mass','max_mass'], axis=1, inplace=True)

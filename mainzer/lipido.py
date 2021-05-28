@@ -4,10 +4,11 @@ import pandas as pd
 import pathlib
 
 from .baseline import strip_baseline
-from .centroiding import centroid_spectrum
-from .deconv import single_molecule_regression, multiple_molecule_regression
-from .ion_generators import get_lipido_ions
-from .read import read
+from .signal_ops import cluster_spectrum
+from .regression import single_molecule_regression, multiple_molecule_regression
+from .molecule_ops import mered_proteins, mered_lipids, molecules2df, crosslink, merge_free_lipids_and_promissing_proteins
+from .read import read_spectrum, read_molecules_for_lipido
+from .molecule_filters import charge_sequence_filter
 
 
 def lipido_IO(settings):
@@ -15,11 +16,15 @@ def lipido_IO(settings):
     Read in necessary data and saves the outputs.
     """
     analysis_time = datetime.now().strftime('lipido__date_%Y_%m_%d_time_%H_%M_%S')
-    molecules = pd.read_csv(settings['path_molecules'])
-    mz, intensity = read(settings['path_spectrum'])
+
+    base_lipids   = read_base_lipids(settings['path_base_lipids'])
+    base_proteins = read_base_proteins(settings['path_base_proteins'])
+    mz, intensity = read_spectrum(settings['path_spectrum'])
+    
     output_folder = pathlib.Path(settings['output_folder'])
     output_folder.mkdir(parents=True, exist_ok=True)
     (output_folder/analysis_time).mkdir(parents=True, exist_ok=True)
+    
     verbose = settings.settings["verbose"]
 
     if verbose:
@@ -29,80 +34,192 @@ def lipido_IO(settings):
         print()
         print("It's business time!")
 
-    proteins, lipid_clusters, centroids = \
-        run_lipido(mz, intensity, molecules, **settings.settings)
+    # proteins, lipid_clusters, centroids = run_lipido(mz=mz,
+    #                                                  intensty=intensity,
+    #                                                  base_proteins=base_proteins,
+    #                                                  base_lipids=base_lipids,
+    #                                                  **settings.settings)
 
-    final_folder = output_folder/analysis_time
+    # final_folder = output_folder/analysis_time
 
-    if verbose:
-        print("Saving results.")
-    proteins.to_csv(final_folder/"proteins.csv")
-    lipid_clusters.to_csv(final_folder/"lipid_clusters.csv")
-    centroids.df.to_csv(final_folder/"centroids.csv")
-    settings.save_toml(final_folder/"config.mainzer")
+    # if verbose:
+    #     print("Saving results.")
+    # proteins.to_csv(final_folder/"proteins.csv")
+    # lipid_clusters.to_csv(final_folder/"lipid_clusters.csv")
+    # centroids.df.to_csv(final_folder/"centroids.csv")
+    # settings.save_toml(final_folder/"config.mainzer")
 
-    if verbose:
-        print("Thank you for letting Lipido do its job!")
+    # if verbose:
+    #     print("Thank you for letting Lipido do its job!")
 
 
 # defaults are set in settings.py! no need to repeat them here.
 def run_lipido(# spectrum preprocessing
                mz,
                intensity,
-               # get_lipido_ions
-               molecules,
+               min_intensity_threshold,
+               # proteins
+               base_proteins,
+               min_protein_mers,
                max_protein_mers,
+               min_protein_cluster_charge,
+               max_protein_cluster_charge,
+               # lipids
+               base_lipids,
+               min_lipid_mers,
                max_lipid_mers,
-               min_lipid_charge,
-               max_lipid_charge,
-               min_protein_charge,
-               max_protein_charge,
+               min_free_lipid_cluster_charge,
+               max_free_lipid_cluster_charge,
+               # crosslinking
+               only_heteromers, # discard homomers
+               # charge based filter: turn off by setting to 1
+               min_charge_sequence_length,
                # single molecule regression
                isotopic_coverage,
                isotopic_bin_size,
                neighbourhood_thr,
                underfitting_quantile,
+               minimal_maximal_intensity_threshold,
                # multiple molecule regression
                deconvolve,
                fitting_to_void_penalty,
                # verbosity might be removed in favor of a logger
                verbose=False,
                **kwds):
-
-    #TODO: wrap functions into some logger to get this right and time it.
+    
     if verbose:
-        print("Getting ions")
+        print("Centroiding") #TODO: change for logger
 
-    ions = get_lipido_ions( molecules,
-                            max_protein_mers,
-                            max_lipid_mers,
-                            min_lipid_charge,
-                            max_lipid_charge,
-                            min_protein_charge,
-                            max_protein_charge )
+    #TODO: reintroduce Michals baseline correction idea
+    clusters_df = cluster_spectrum(mz, intensity)
+    # this is simple: filerting on `max_intensity` in `clusters_df`
+    filtered_clusters_df = clusters_df[clusters_df.I_max >= min_intensity_threshold].copy()
+    filtered_centroids = QueryCentroids(filtered_clusters_df)
+    # centroiding needs to be done once only per analysis
 
-    #TODO: add here spectrum preprocessing:
-    #   intensity based thresholds
-    #   m/z filter [maybe this should be part of centroiding to avoid cuttring them???]
+    if verbose:
+        print("Getting proteins mers")#TODO: change for logger
+    # initially we search for proteins only
+
+    protein_mers = mered_proteins(base_proteins, only_heteromers)
+    protein_ions = molecules2df(protein_mers,
+                                range(min_protein_cluster_charge,
+                                      max_protein_cluster_charge+1))
+    
+    if verbose:
+        print("Checking for promissing proteins")
+
+    # ions_df = protein_ions.copy()
+    protein_ions = single_molecule_regression(filtered_centroids,
+                                              protein_ions,
+                                              isotopic_coverage,
+                                              isotopic_bin_size,
+                                              neighbourhood_thr,
+                                              underfitting_quantile,
+                                              verbose)
+
+    # `protein_ions` is updated by regression results
+    
+    promissing_protein_ions_df = \
+        protein_ions[protein_ions.maximal_intensity >= minimal_maximal_intensity_threshold].copy()
+
+    #TODO: ERROR! ERROR! The esimates of maximal intensity should not exceed the spectral intensity. Something is massively wrong now.
+    #TODO: change the "simple_molecule_regression" into a class that could output errors and report on different metrics.
+    import matplotlib.pyplot as plt
+    plt.scatter(
+        promissing_protein_ions_df.isospec_prob_with_signal,
+        np.log10(promissing_protein_ions_df.maximal_intensity/promissing_protein_ions_df.neighbourhood_intensity))
+    plt.show()
+    promissing_protein_ions_df.query("neighbourhood_intensity<maximal_intensity")
+
+    
+    if min_charge_sequence_length > 1:
+        promissing_protein_ions_df = charge_sequence_filter(promissing_protein_ions_df,
+                                                            min_charge_sequence_length)
+    #TODO: might introduce extra criteria to filter more things out
+
+    if verbose:
+        print("Getting lipid mers")
+    
+    free_lipid_mers = dict(mered_lipids(base_lipids,
+                                        min_lipid_mers,
+                                        max_lipid_mers))
+    free_lipids_no_charge_df = molecules2df(free_lipid_mers)
+    free_lipids_with_charge_df = \
+        molecules2df(free_lipid_mers, 
+                     charges = range(min_free_lipid_cluster_charge,
+                                     max_free_lipid_cluster_charge))
+
+    if verbose:
+        print("Getting promissing protein-lipid clusters.")
+
+    promissing_protein_lipid_complexes = \
+        merge_free_lipids_and_promissing_proteins(free_lipids_no_charge_df,
+                                                  promissing_protein_ions_df)
+    
+    # (promissing) Protein Lipid Clusters + Free Lipid Clusters
+    PLC_FLC = pd.concat([promissing_protein_lipid_complexes,
+                         free_lipids_with_charge_df],
+                         ignore_index=True)
+
+    # ions_df need to have fresh integer key... I am sorry Michał, I created a monster.
+    PLC_FLC = single_molecule_regression(filtered_centroids,
+                                         PLC_FLC,
+                                         isotopic_coverage,
+                                         isotopic_bin_size,
+                                         neighbourhood_thr,
+                                         underfitting_quantile,
+                                         verbose)
+    
+    PLC_FLC_intense = PLC_FLC[ PLC_FLC.maximal_intensity >= minimal_maximal_intensity_threshold].copy()
+
+    import matplotlib.pyplot as plt
+    
+    plt.hist(PLC_FLC_intense.isospec_prob_with_signal)
+    plt.show()
+    plt.scatter(np.log(PLC_FLC_intense.maximal_intensity),
+                np.log(PLC_FLC_intense.proximity_intensity),
+                c=PLC_FLC_intense.isospec_prob_with_signal,
+                s=1)
+    plt.show()
+    plt.scatter(
+                PLC_FLC_intense.isospec_prob_with_signal,
+                np.log10(PLC_FLC_intense.maximal_intensity / PLC_FLC_intense.neighbourhood_intensity),
+                s=1)
+    plt.show()
+    # I need to export some misfits information.
+
+    # run full
+
+
+    # dict(crosslink(protein_mers, free_lipid_mers)) # too big!
 
     # if verbose:
-    #     print("Baseline correction")
-    # mz, intensity = strip_baseline(mz, intensity, settings["min_intensity"])    
+    #     print("Looking for charged proteins.")
+    
+    
+    
 
-    if verbose:
-        print("Centroiding")
-    centroids = centroid_spectrum(mz, intensity)
+    # ions, centroids, peak_assignments_clustered, peak_assignments_summary = \
+    #     single_molecule_regression( centroids,
+    #                                 ions,
+    #                                 isotopic_coverage,
+    #                                 isotopic_bin_size,
+    #                                 neighbourhood_thr,
+    #                                 underfitting_quantile,
+    #                                 verbose )
+    
 
-    if verbose:
-        print("Performing singe molecule deconvolution.")
-    ions, centroids, peak_assignments_clustered, peak_assignments_summary = \
-        single_molecule_regression( centroids,
-                                    ions,
-                                    isotopic_coverage,
-                                    isotopic_bin_size,
-                                    neighbourhood_thr,
-                                    underfitting_quantile,
-                                    verbose )
+    # if verbose:
+    #     print("Performing singe molecule deconvolution.")
+    # ions, centroids, peak_assignments_clustered, peak_assignments_summary = \
+    #     single_molecule_regression( centroids,
+    #                                 ions,
+    #                                 isotopic_coverage,
+    #                                 isotopic_bin_size,
+    #                                 neighbourhood_thr,
+    #                                 underfitting_quantile,
+    #                                 verbose )
     
     # here we need some filtering of ions
 
