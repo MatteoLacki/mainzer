@@ -78,3 +78,43 @@ def test_IntervalQuery():
     assert all(index_edges_using_tuple_query.query == index_edges.query) and \
            all(index_edges_using_tuple_query.interval_db == index_edges.interval_db), \
            "Results between 'interval_query' and 'interval_query_tuples' do not match."
+
+#TODO: find a better place for this class.
+import pandas as pd
+
+class IonsCentroids(object):
+    def __init__(self,
+                 ions,
+                 centroids,
+                 isotopic_calculator):
+        self.ions = ions
+        self.centroids = centroids
+        self.centroids_intervals = IntervalQuery(self.centroids.left_mz,
+                                                 self.centroids.right_mz)
+        self.isotopic_calculator = isotopic_calculator
+
+    def get_isotopic_summaries(self):
+        self.ions = self.isotopic_calculator.ions_summary(self.ions)
+
+    def get_neighbourhood_intensities(self, neighbourhood_thr=1.1):
+        edges = self.centroids_intervals.interval_query(self.ions.isospec_min_mz + neighbourhood_thr,
+                                                        self.ions.isospec_max_mz + neighbourhood_thr)
+        # different neighbourhoods might include intensity from the same centroids.
+        self.ions["neighbourhood_intensity"] = self.centroids.I_sum.iloc[edges.interval_db].groupby(edges.query).sum()
+        self.ions.neighbourhood_intensity.fillna(0, inplace=True)# NaN = 0 
+
+    def assign_isotopologues_to_centroids(self, min_neighbourhood_intensity=0):
+        #TODO: one might optimize this for graph purposes
+        promissing_ions = self.ions[self.ions.neighbourhood_intensity > 0][["formula","charge"]]
+        promissing_ions.drop_duplicates(inplace=True)
+        full_envelopes = pd.concat(self.isotopic_calculator.to_frame(form, z)
+                                   for form, z in promissing_ions.itertuples(index=False))
+        return full_envelopes
+
+
+    @staticmethod
+    def from_existing_centroids(existing_ions_centroids, new_ions):
+        """This is introduced to save time on unnecessary initialization."""
+        return IonsCentroids(new_ions,
+                             existing_ions_centroids.centroids,
+                             existing_ions_centroids.isotopic_calculator)

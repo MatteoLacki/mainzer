@@ -32,7 +32,15 @@ filtered_clusters_df.iloc[res.interval_db]
 
 res = isotopic_envelopes.envelopes_summary()
 ions_df.merge(res)
-isotopic_envelopes.ions_summary(ions_df)
+isotopic_envelopes.ions_summary()
 
 
 res["charge"] = ions_df.charge
+
+ions_centroids = IonsCentroids(protein_ions,
+                               filtered_clusters_df,
+                               isotopic_calculator)
+ions_centroids.get_isotopic_summaries()
+ions_centroids.get_neighbourhood_intensities(neighbourhood_thr)
+ions_centroids.assign_isotopologues_to_centroids()
+

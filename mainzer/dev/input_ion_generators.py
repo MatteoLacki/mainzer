@@ -13,10 +13,10 @@ from mainzer.signal_ops import cluster_spectrum
 from mainzer.centroiding import QueryCentroids
 from mainzer.regression import single_molecule_regression
 from mainzer.molecule_filters import charge_sequence_filter
-from mainzer.isotope_ops import IsotopicEnvelopes
+from mainzer.isotope_ops import IsotopicCalculator
 from mainzer.graph_ops import get_regression_bigraph
 from mainzer.models import fit_DeconvolvedUnderfit
-
+from mainzer.intervals import IntervalQuery, IonsCentroids
 
 
 from collections import defaultdict
@@ -40,12 +40,16 @@ max_free_lipid_cluster_charge = 5
 min_charge_sequence_length = 3
 min_intensity_threshold = 100
 
+min_mz = 100
+max_mz = 18000
+
 isotopic_coverage = .95
 isotopic_bin_size = .1
 neighbourhood_thr = 1.1
 underfitting_quantile = 0.00
 only_heteromers = False
 minimal_maximal_intensity_threshold = 200
+min_neighbourhood_intensity = 0
 
 deconvolve = True
 fitting_to_void_penalty = 1.0

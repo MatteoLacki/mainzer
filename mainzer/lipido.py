@@ -5,10 +5,12 @@ import pathlib
 
 from .baseline import strip_baseline
 from .signal_ops import cluster_spectrum
+from .isotope_ops import IsotopicCalculator
 from .regression import single_molecule_regression, multiple_molecule_regression
 from .molecule_ops import mered_proteins, mered_lipids, molecules2df, crosslink, merge_free_lipids_and_promissing_proteins
 from .read import read_spectrum, read_molecules_for_lipido
 from .molecule_filters import charge_sequence_filter
+from .intervals import IntervalQuery, IonsCentroids
 
 
 def lipido_IO(settings):
@@ -58,6 +60,8 @@ def run_lipido(# spectrum preprocessing
                mz,
                intensity,
                min_intensity_threshold,
+               min_mz,
+               max_mz,
                # proteins
                base_proteins,
                min_protein_mers,
@@ -92,10 +96,12 @@ def run_lipido(# spectrum preprocessing
 
     #TODO: reintroduce Michals baseline correction idea
     clusters_df = cluster_spectrum(mz, intensity)
+    
     # this is simple: filerting on `max_intensity` in `clusters_df`
-    filtered_clusters_df = clusters_df[clusters_df.I_max >= min_intensity_threshold].copy()
-    
-    
+    filtered_clusters_df = clusters_df[(clusters_df.I_max >= min_intensity_threshold).values &\
+                                       (clusters_df.left_mz >= min_mz).values &\
+                                       (clusters_df.right_mz <= max_mz).values].copy()
+
     if verbose:
         print("Getting proteins mers")#TODO: change for logger
     # initially we search for proteins only
@@ -104,19 +110,32 @@ def run_lipido(# spectrum preprocessing
     protein_ions = molecules2df(protein_mers,
                                 range(min_protein_cluster_charge,
                                       max_protein_cluster_charge+1))
-    
+
+    if verbose:
+        print("Setting up IsoSpec (soon to defeat NeutronStar, if it already does not).")
+    isotopic_calculator = IsotopicCalculator(isotopic_coverage, isotopic_bin_size)
+
+
     if verbose:
         print("Checking for promissing proteins")
 
+    ions_centroids = IonsCentroids(protein_ions,
+                                   filtered_clusters_df,
+                                   isotopic_calculator)
+    ions_centroids.get_isotopic_summaries()
+    
+
+
     # ions_df = protein_ions.copy()
     # centroids = filtered_clusters_df
-    protein_ions = single_molecule_regression(filtered_centroids,
+    protein_ions = single_molecule_regression(filtered_clusters_df,
                                               protein_ions,
-                                              isotopic_coverage,
-                                              isotopic_bin_size,
+                                              isotopic_calculator,
                                               neighbourhood_thr,
                                               underfitting_quantile,
                                               verbose)
+
+
 
     # `protein_ions` is updated by regression results
     

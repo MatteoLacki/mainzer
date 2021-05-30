@@ -2,19 +2,17 @@ import numpy as np
 import pandas as pd
 import tqdm
 
-from .isotope_ops import IsotopicEnvelopes
 from .graph_ops import get_regression_bigraph
 from .models import fit_DeconvolvedUnderfit
 
 DEBUG = True
 
 
-# ions_df = protein_mers
-# centroids = filtered_centroids
+
+
 def single_molecule_regression(centroids,
                                ions_df,
-                               isotopic_coverage=.95,
-                               isotopic_bin_size=.1,
+                               isotopic_calculator,
                                neighbourhood_thr=1.1,
                                underfitting_quantile=0.05,
                                verbose=False,
@@ -28,21 +26,19 @@ def single_molecule_regression(centroids,
     if verbose:
         print("Getting Isotopic Envelopes")
 
-    isotopic_envelopes = IsotopicEnvelopes(ions_df.formula.unique(),
-                                           isotopic_coverage,
-                                           isotopic_bin_size)
+    ions_df = isotopic_calculator.ions_summary(ions_df)
 
-    isotopic_envelopes.ions_summary(ions_df)
-
-
-    ion_idx = ['formula','charge']
-    ions_df = ions_df.set_index(ion_idx)
+    # ion_idx = ['formula','charge']
+    # ions_df = ions_df.set_index(ion_idx)
 
     if verbose:
         print(f"Getting intensity of signal centroids in a {neighbourhood_thr}-neighbourhood of theoretical peaks.")
 
-    minmax_signals = centroids.interval_query(ions_df.min_isospec_mz - neighbourhood_thr,
-                                              ions_df.max_isospec_mz + neighbourhood_thr)
+
+
+    # stupid name: here we simply want to sum intensities from neighbourhood of each ion
+    minmax_signals = centroids.interval_query(ions_df.isospec_min_mz - neighbourhood_thr,
+                                              ions_df.isospec_max_mz + neighbourhood_thr)
     
     ions_df["neighbourhood_intensity"] = minmax_signals.I_sum.groupby(ion_idx).sum()
     ions_df.neighbourhood_intensity.fillna(0, inplace=True)# NaN = 0 intensity
