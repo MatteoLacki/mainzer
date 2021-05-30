@@ -110,6 +110,7 @@ def run_lipido(# spectrum preprocessing
         print("Checking for promissing proteins")
 
     # ions_df = protein_ions.copy()
+    # centroids = filtered_centroids
     protein_ions = single_molecule_regression(filtered_centroids,
                                               protein_ions,
                                               isotopic_coverage,

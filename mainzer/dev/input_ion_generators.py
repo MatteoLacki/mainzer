@@ -58,8 +58,6 @@ path = "/home/matteo/Projects/och_Kallol/mainzer/test_data/molecules2.csv"
 base_lipids = read_base_lipids("/home/matteo/Projects/och_Kallol/mainzer/test_data/base_lipids.csv")
 base_proteins = read_base_proteins("/home/matteo/Projects/och_Kallol/mainzer/test_data/base_proteins.csv")
 
-filtered_centroids
-
 
 isotopic_envelopes2 = IsotopicEnvelopes(protein_ions.formula.unique(),
                                         isotopic_coverage,

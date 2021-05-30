@@ -35,7 +35,6 @@ def single_molecule_regression(centroids,
     # del self
     # formulas = ions_df.formula
     # charges = ions_df.charge
-    # this part is totally weird...
     ions_df = ions_df.merge(isotopic_envelopes.charged_envelopes_summary(ions_df.formula, ions_df.charge))
     
     ion_idx = ['formula','charge']
@@ -50,6 +49,8 @@ def single_molecule_regression(centroids,
     ions_df["neighbourhood_intensity"] = minmax_signals.I_sum.groupby(ion_idx).sum()
     ions_df.neighbourhood_intensity.fillna(0, inplace=True)# NaN = 0 intensity
     del minmax_signals
+
+
 
     if verbose:
         print("Assigning isotopic envelope peaks to real signal centroids.")
