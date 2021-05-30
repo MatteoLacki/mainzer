@@ -43,4 +43,9 @@ ions_centroids = IonsCentroids(protein_ions,
 ions_centroids.get_isotopic_summaries()
 ions_centroids.get_neighbourhood_intensities(neighbourhood_thr)
 ions_centroids.assign_isotopologues_to_centroids()
+ions_centroids.estimate_max_ion_intensity(underfitting_quantile)
+ions_centroids.ions
 
+# something is still wrong!!!!
+
+ions_centroids.ions.neighbourhood_intensity >= ions_centroids.ions.maximal_intensity
