@@ -32,8 +32,8 @@ class IsotopicEnvelopes(dict):
     def formula2probs(self, formula):
         return self[formula].np_probs()
 
-    def iter_envelope_summaries(self, formulas=None):
-        for formula in formulas if formulas is not None else self:
+    def iter_envelope_summaries(self):
+        for formula in self:
             envelope = self[formula]
             masses = envelope.np_masses()
             probs = envelope.np_probs()
@@ -43,23 +43,25 @@ class IsotopicEnvelopes(dict):
                    "min_mass": masses.min(),
                    "max_mass": masses.max()}
 
-    def envelopes_summary(self, formulas=None):
-        print("Envelopes_summary")
-        return pd.DataFrame(self.iter_envelope_summaries(formulas))
+    def envelopes_summary(self):
+        return pd.DataFrame(self.iter_envelope_summaries())
 
-    def charged_envelopes_summary(self, formulas, charges):
-        res = self.envelopes_summary(formulas)
-        res["charge"] = charges
-
-        res["min_isospec_mz"] = res.min_mass / res.charge + self.PROTON_MASS
-        res["max_isospec_mz"] = res.max_mass / res.charge + self.PROTON_MASS
-        res.drop(['min_mass','max_mass'], axis=1, inplace=True)
-        return res
+    def ions_summary(self, ions_df, copy_ions_df=True):
+        assert all(col in ions_df.columns for col in ("formula", "charge"))
+        if copy_ions_df:
+            ions_df = ions_df.copy()
+        res = self.envelopes_summary()
+        ions_df = ions_df.merge(res)
+        ions_df["isospec_min_mz"] = ions_df.min_mass / ions_df.charge + self.PROTON_MASS
+        ions_df["isospec_max_mz"] = ions_df.max_mass / ions_df.charge + self.PROTON_MASS
+        ions_df.drop(['min_mass','max_mass'], axis=1, inplace=True)
+        return ions_df
 
     def sizes(self):
         return {formula: len(iso) for formula,iso in self.items()}
 
     def to_frame(self, ions, return_arrays=False):
+        """Represent all of isotopic patterns as pd.DataFrame. """
         theory_peaks_cnts = np.array([len(self[formula]) for formula, _ in ions])
         theory_peaks_cnt = theory_peaks_cnts.sum()
         mzs = np.zeros(theory_peaks_cnt, float)

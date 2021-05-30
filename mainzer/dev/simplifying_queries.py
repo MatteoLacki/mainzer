@@ -30,4 +30,9 @@ intervals[res.query]
 filtered_clusters_df.iloc[res.interval_db]
 
 
+res = isotopic_envelopes.envelopes_summary()
+ions_df.merge(res)
+isotopic_envelopes.ions_summary(ions_df)
 
+
+res["charge"] = ions_df.charge

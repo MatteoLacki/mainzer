@@ -31,12 +31,10 @@ def single_molecule_regression(centroids,
     isotopic_envelopes = IsotopicEnvelopes(ions_df.formula.unique(),
                                            isotopic_coverage,
                                            isotopic_bin_size)
-    # self = isotopic_envelopes
-    # del self
-    # formulas = ions_df.formula
-    # charges = ions_df.charge
-    ions_df = ions_df.merge(isotopic_envelopes.charged_envelopes_summary(ions_df.formula, ions_df.charge))
-    
+
+    isotopic_envelopes.ions_summary(ions_df)
+
+
     ion_idx = ['formula','charge']
     ions_df = ions_df.set_index(ion_idx)
 

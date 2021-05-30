@@ -59,15 +59,3 @@ base_lipids = read_base_lipids("/home/matteo/Projects/och_Kallol/mainzer/test_da
 base_proteins = read_base_proteins("/home/matteo/Projects/och_Kallol/mainzer/test_data/base_proteins.csv")
 
 
-isotopic_envelopes2 = IsotopicEnvelopes(protein_ions.formula.unique(),
-                                        isotopic_coverage,
-                                        isotopic_bin_size)
-isotopic_envelopes2.charged_envelopes_summary(protein_ions.formula, protein_ions.charge)
-
-isotopic_envelopes3 = IsotopicEnvelopes(protein_ions.formula.unique(),
-                                        isotopic_coverage,
-                                        isotopic_bin_size)
-isotopic_envelopes3.charged_envelopes_summary(protein_ions.formula, protein_ions.charge)
-
-
-

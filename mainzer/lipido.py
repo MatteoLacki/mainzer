@@ -94,9 +94,8 @@ def run_lipido(# spectrum preprocessing
     clusters_df = cluster_spectrum(mz, intensity)
     # this is simple: filerting on `max_intensity` in `clusters_df`
     filtered_clusters_df = clusters_df[clusters_df.I_max >= min_intensity_threshold].copy()
-    filtered_centroids = QueryCentroids(filtered_clusters_df)
-    # centroiding needs to be done once only per analysis
-
+    
+    
     if verbose:
         print("Getting proteins mers")#TODO: change for logger
     # initially we search for proteins only
@@ -110,7 +109,7 @@ def run_lipido(# spectrum preprocessing
         print("Checking for promissing proteins")
 
     # ions_df = protein_ions.copy()
-    # centroids = filtered_centroids
+    # centroids = filtered_clusters_df
     protein_ions = single_molecule_regression(filtered_centroids,
                                               protein_ions,
                                               isotopic_coverage,
