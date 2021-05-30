@@ -1,6 +1,7 @@
 %load_ext autoreload
 %autoreload 2
 
+import numpy as np
 import json
 from mainzer.read import read_spectrum
 from mainzer.signal_ops import cluster_spectrum
@@ -22,10 +23,11 @@ IQ = IntervalQuery(filtered_clusters_df.left_mz,
 
 IQ.point_query([100, 400, 1000, 398.73])
 IQ.interval_query([100, 400, 1000, 398.73], [101, 401, 1001, 398.83])
-IQ.interval_query_tuples([(100,101), (400,401), (1000,1001), (398.73, 398.83)])
 
-filtered_centroids = QueryCentroids(filtered_clusters_df)
-
+intervals = np.array([(100,101), (400,401), (1000,1001), (398.73, 398.83)])
+res = IQ.interval_query_tuples(intervals)
+intervals[res.query]
+filtered_clusters_df.iloc[res.interval_db]
 
 
 

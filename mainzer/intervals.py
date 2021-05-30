@@ -59,12 +59,17 @@ class IntervalQuery(object):
 
 
 def test_IntervalQuery():
+    """This can be run by typing 'pytest' from the root."""
     test_intervals = IntervalQuery([0., 2., 7.],
                                    [1., 3., 9.])
     index_edges = test_intervals.interval_query(left=[-2, 1.5],
                                                 right=[-1, 10.])
     assert all(index_edges.query == [1,1]), "Wrong indices of queried intervals returned."
     assert all(index_edges.interval_db == [1,2]), "Wrong indices of intervals in the interval database returned."
+
+    point_edges = test_intervals.point_query(x=[2.5, 6, 8])
+    assert all(point_edges.query == [0,2]), "Wrong indices of queried intervals returned."
+    assert all(point_edges.interval_db == [1,2]), "Wrong indices of intervals in the interval database returned." 
 
     query_intervals = [(-2, -1), (1.5, 10)]
     left, right = zip(*query_intervals)
