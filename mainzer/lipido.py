@@ -9,8 +9,7 @@ from .isotope_ops import IsotopicCalculator
 from .regression import single_molecule_regression, multiple_molecule_regression
 from .molecule_ops import mered_proteins, mered_lipids, molecules2df, crosslink, merge_free_lipids_and_promissing_proteins
 from .read import read_spectrum, read_molecules_for_lipido
-from .molecule_filters import charge_sequence_filter
-from .intervals import IntervalQuery, IonsCentroids
+from .regression import single_molecule_regression
 
 
 def lipido_IO(settings):
@@ -115,48 +114,20 @@ def run_lipido(# spectrum preprocessing
         print("Setting up IsoSpec (soon to defeat NeutronStar, if it already does not).")
     isotopic_calculator = IsotopicCalculator(isotopic_coverage, isotopic_bin_size)
 
-
     if verbose:
         print("Checking for promissing proteins")
 
-    ions_centroids = IonsCentroids(protein_ions,
-                                   filtered_clusters_df,
-                                   isotopic_calculator)
-    ions_centroids.get_isotopic_summaries()
+    matchmaker = single_molecule_regression(protein_ions,
+                                            filtered_clusters_df,
+                                            isotopic_calculator,
+                                            neighbourhood_thr,
+                                            underfitting_quantile,
+                                            min_total_fitted_probability,
+                                            min_max_intensity_threshold,
+                                            min_charge_sequence_length)
     
-
-
-    # ions_df = protein_ions.copy()
-    # centroids = filtered_clusters_df
-    protein_ions = single_molecule_regression(filtered_clusters_df,
-                                              protein_ions,
-                                              isotopic_calculator,
-                                              neighbourhood_thr,
-                                              underfitting_quantile,
-                                              verbose)
-
-
-
-    # `protein_ions` is updated by regression results
+    promissing_protein_ions = matchmaker.ions
     
-    promissing_protein_ions_df = \
-        protein_ions[protein_ions.maximal_intensity >= minimal_maximal_intensity_threshold].copy()
-
-    #TODO: ERROR! ERROR! The esimates of maximal intensity should not exceed the spectral intensity. Something is massively wrong now.
-    #TODO: change the "simple_molecule_regression" into a class that could output errors and report on different metrics.
-    import matplotlib.pyplot as plt
-    plt.scatter(
-        promissing_protein_ions_df.isospec_prob_with_signal,
-        np.log10(promissing_protein_ions_df.maximal_intensity/promissing_protein_ions_df.neighbourhood_intensity))
-    plt.show()
-    promissing_protein_ions_df.query("neighbourhood_intensity<maximal_intensity")
-
-    
-    if min_charge_sequence_length > 1:
-        promissing_protein_ions_df = charge_sequence_filter(promissing_protein_ions_df,
-                                                            min_charge_sequence_length)
-    #TODO: might introduce extra criteria to filter more things out
-
     if verbose:
         print("Getting lipid mers")
     
