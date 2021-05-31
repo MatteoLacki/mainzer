@@ -120,19 +120,50 @@ class IonsCentroids(object):
         assert all((isotopologue2centroid.mz >= isotopologue2centroid.left_mz).values & (isotopologue2centroid.mz <= isotopologue2centroid.right_mz).values ), "Some theoretical m/z values are not inside  intervals matched to centroids."
 
         isotopologue2centroid['mzprob'] = isotopologue2centroid.mz * isotopologue2centroid.prob
-        self.ion2centroids = isotopologue2centroid.groupby(["formula","charge","cluster","I_sum"]).agg({"mz":[min, max], "mzprob":[sum, len], "prob":sum})
+
+        # here we add I_sum to the key because it is unique to each cluster.
+        self.ion2centroids = isotopologue2centroid.groupby(["formula","charge","cluster","I_sum"]).agg(
+            {"mz":[min, max],
+             "mzprob":[sum, len],
+             "prob":sum}
+        )
         self.ion2centroids.columns = ["min_mz", "max_mz", "tot_mzprob","isotopologues_cnt", "isospec_isotopologues_prob"]
+
         self.ion2centroids['weighted_mz'] = self.ion2centroids.tot_mzprob / self.ion2centroids.isospec_isotopologues_prob
+
         self.ion2centroids = self.ion2centroids.reset_index()
+
         self.ion2centroids.isotopologues_cnt = self.ion2centroids.isotopologues_cnt.astype(np.int64)
+
         self.ion2centroids["intensity_over_prob"] = self.ion2centroids.I_sum / self.ion2centroids.isospec_isotopologues_prob
         
     def estimate_max_ion_intensity(self, underfitting_quantile=0):
         max_intensity = self.ion2centroids.groupby(["formula","charge"]).intensity_over_prob.quantile(underfitting_quantile)
+
         max_intensity.name = "maximal_intensity"
         self.ions = self.ions.merge(max_intensity, left_on=["formula","charge"], right_index=True, how="left")
         self.ions.maximal_intensity.fillna(0, inplace=True)
 
+    def summarize_ion_assignments(self):
+        self.ion_assignments_summary = self.ion2centroids.groupby(["formula","charge"]).agg(
+            {"isospec_isotopologues_prob":"sum",
+             "I_sum":"sum", # Here sum is OK: we sum different centroids' intensities.
+             "cluster":"nunique"}
+        )
+        self.ion_assignments_summary = self.ion_assignments_summary.rename(
+            columns={"isospec_isotopologues_prob":"isospec_prob_with_signal",
+                     "I_sum":"proximity_intensity", 
+                     "cluster":"touched_centroids"}
+        )
+        self.ion_assignments_summary = pd.merge(
+            self.ion_assignments_summary,
+            self.ions[["formula", "charge", "isospec_final_coverage"]],
+            left_index=True, right_on=["formula", "charge"]
+        )
+        self.ion_assignments_summary["isospec_prob_without_signal"] = \
+        self.ion_assignments_summary.isospec_final_coverage - \
+        self.ion_assignments_summary.isospec_prob_with_signal
+        self.ion_assignments_summary
 
 
 

@@ -44,8 +44,19 @@ ions_centroids.get_isotopic_summaries()
 ions_centroids.get_neighbourhood_intensities(neighbourhood_thr)
 ions_centroids.assign_isotopologues_to_centroids()
 ions_centroids.estimate_max_ion_intensity(underfitting_quantile)
+ions_centroids.summarize_ion_assignments()
+
+pd.merge(
+    ions_centroids.ion_assignments_summary,
+    ions_centroids.ions[["formula", "charge", "isospec_final_coverage"]],
+    left_index=True, right_on=["formula", "charge"]
+)
+
+
+
+
 ions_centroids.ions
 
-# something is still wrong!!!!
-
+# something is still wrong?
+# it might be that fishy things are simply below
 ions_centroids.ions.neighbourhood_intensity >= ions_centroids.ions.maximal_intensity
