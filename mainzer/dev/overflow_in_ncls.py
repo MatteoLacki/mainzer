@@ -95,3 +95,6 @@ proteins, free_lipid_clusters, centroids_df = run_lipido(# spectrum preprocessin
 
 proteins, free_lipid_clusters, centroids_df
 plot_fit(centroids_df)
+
+proteins
+free_lipid_clusters
