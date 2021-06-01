@@ -126,7 +126,7 @@ def run_lipido(# spectrum preprocessing
                                             min_max_intensity_threshold,
                                             min_charge_sequence_length)
     
-    promissing_protein_ions = matchmaker.ions
+    promissing_protein_ions_df = matchmaker.ions
     
     if verbose:
         print("Getting lipid mers")
@@ -147,36 +147,47 @@ def run_lipido(# spectrum preprocessing
         merge_free_lipids_and_promissing_proteins(free_lipids_no_charge_df,
                                                   promissing_protein_ions_df)
     
-    # (promissing) Protein Lipid Clusters + Free Lipid Clusters
-    PLC_FLC = pd.concat([promissing_protein_lipid_complexes,
-                         free_lipids_with_charge_df],
-                         ignore_index=True)
-
-    # ions_df need to have fresh integer key... I am sorry Michał, I created a monster.
-    PLC_FLC = single_molecule_regression(filtered_centroids,
-                                         PLC_FLC,
-                                         isotopic_coverage,
-                                         isotopic_bin_size,
-                                         neighbourhood_thr,
-                                         underfitting_quantile,
-                                         verbose)
+    # Promissing Ions = Promissing Proteins + Protein Lipid Clusters + Free Lipid Clusters
+    promissing_ions = pd.concat([protein_ions,
+                                 promissing_protein_lipid_complexes,
+                                 free_lipids_with_charge_df],
+                                 ignore_index=True)
     
-    PLC_FLC_intense = PLC_FLC[ PLC_FLC.maximal_intensity >= minimal_maximal_intensity_threshold].copy()
+    # ions = promissing_ions
+    # clusters = filtered_clusters_df 
+    full_matchmaker = single_molecule_regression(promissing_ions,
+                                                 filtered_clusters_df,
+                                                 isotopic_calculator,
+                                                 neighbourhood_thr,
+                                                 underfitting_quantile,
+                                                 min_total_fitted_probability,
+                                                 min_max_intensity_threshold,
+                                                 min_charge_sequence_length)
 
-    import matplotlib.pyplot as plt
+    # PLC_FLC = single_molecule_regression(filtered_centroids,
+    #                                      PLC_FLC,
+    #                                      isotopic_coverage,
+    #                                      isotopic_bin_size,
+    #                                      neighbourhood_thr,
+    #                                      underfitting_quantile,
+    #                                      verbose)
     
-    plt.hist(PLC_FLC_intense.isospec_prob_with_signal)
-    plt.show()
-    plt.scatter(np.log(PLC_FLC_intense.maximal_intensity),
-                np.log(PLC_FLC_intense.proximity_intensity),
-                c=PLC_FLC_intense.isospec_prob_with_signal,
-                s=1)
-    plt.show()
-    plt.scatter(
-                PLC_FLC_intense.isospec_prob_with_signal,
-                np.log10(PLC_FLC_intense.maximal_intensity / PLC_FLC_intense.neighbourhood_intensity),
-                s=1)
-    plt.show()
+    # PLC_FLC_intense = PLC_FLC[ PLC_FLC.maximal_intensity >= minimal_maximal_intensity_threshold].copy()
+
+    # import matplotlib.pyplot as plt
+    
+    # plt.hist(PLC_FLC_intense.isospec_prob_with_signal)
+    # plt.show()
+    # plt.scatter(np.log(PLC_FLC_intense.maximal_intensity),
+    #             np.log(PLC_FLC_intense.proximity_intensity),
+    #             c=PLC_FLC_intense.isospec_prob_with_signal,
+    #             s=1)
+    # plt.show()
+    # plt.scatter(
+    #             PLC_FLC_intense.isospec_prob_with_signal,
+    #             np.log10(PLC_FLC_intense.maximal_intensity / PLC_FLC_intense.neighbourhood_intensity),
+    #             s=1)
+    # plt.show()
     # I need to export some misfits information.
 
     # run full

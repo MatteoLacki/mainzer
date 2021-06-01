@@ -37,17 +37,32 @@ class Matchmaker(object):
         #TODO: one might optimize this for graph purposes
         promissing_ions = self.ions[self.ions.neighbourhood_intensity > 0][self.ION]
         promissing_ions.drop_duplicates(inplace=True)
-        full_envelopes = pd.concat(self.isotopic_calculator.to_frame(form, z)
-                                   for form, z in promissing_ions.itertuples(index=False))
-        edges = self.centroids_intervals.point_query(full_envelopes.mz)
+        full_envelopes = pd.concat((self.isotopic_calculator.to_frame(form, z)
+                                    for form, z in promissing_ions.itertuples(index=False)),
+                                   ignore_index=True)
         
+        # edges = self.centroids_intervals.point_query(full_envelopes.head(50).mz)
+        # full_envelopes.iloc[edges.query]
+
+        # i = 0 
+        # for i in range(len(full_envelopes)):
+        #     edges = self.centroids_intervals.point_query(full_envelopes.mz.iloc[(i*100):((i+1)*100)])
+        #     full_envelopes.iloc[edges.query].reset_index(drop=True)
+        # np.ulonglong
+        # np.arange()
+
+        edges = self.centroids_intervals.point_query(full_envelopes.mz.values)
+        print(edges.query.min()) # wow
+        print(edges.query.max()) # wow
+
         important_columns = ["I_sum","left_mz","right_mz"]
+
         isotopologue2centroid = pd.concat([
             full_envelopes.iloc[edges.query].reset_index(drop=True),
             self.centroids[important_columns].iloc[edges.interval_db].reset_index()
         ], axis=1)
 
-        assert all((isotopologue2centroid.mz >= isotopologue2centroid.left_mz).values & (isotopologue2centroid.mz <= isotopologue2centroid.right_mz).values ), "Some theoretical m/z values are not inside  intervals matched to centroids."
+        # assert all((isotopologue2centroid.mz >= isotopologue2centroid.left_mz).values & (isotopologue2centroid.mz <= isotopologue2centroid.right_mz).values ), "Some theoretical m/z values are not inside  intervals matched to centroids."
         isotopologue2centroid['mzprob'] = isotopologue2centroid.mz * isotopologue2centroid.prob
         # here we add I_sum to the key because it is unique to each cluster.
         self.ion2centroids = isotopologue2centroid.groupby(self.ION+["cluster","I_sum"]).agg(
@@ -171,6 +186,8 @@ def single_molecule_regression(ions,
     matchmaker = Matchmaker(ions, clusters, isotopic_calculator)
     matchmaker.get_isotopic_summaries()
     matchmaker.get_neighbourhood_intensities(neighbourhood_thr)
+    self = matchmaker
+
     matchmaker.assign_isotopologues_to_centroids()
     matchmaker.estimate_max_ion_intensity(underfitting_quantile)
     matchmaker.summarize_ion_assignments()
@@ -185,13 +202,13 @@ def single_molecule_regression(ions,
 
 
 def single_molecule_regression_old(centroids,
-                               ions_df,
-                               isotopic_coverage=.95,
-                               isotopic_bin_size=.1,
-                               neighbourhood_thr=1.1,
-                               underfitting_quantile=0.05,
-                               verbose=False,
-                               **kwds):
+                                   ions_df,
+                                   isotopic_coverage=.95,
+                                   isotopic_bin_size=.1,
+                                   neighbourhood_thr=1.1,
+                                   underfitting_quantile=0.05,
+                                   verbose=False,
+                                   **kwds):
 
     assert all(colname in ions_df.columns for colname in ("name","formula","charge")), "'ions_df' should be a pandas.DataFrame with columns 'name', 'formula', and 'charge'."
     assert isotopic_coverage >= 0 and isotopic_coverage <= 1, "'isotopic_coverage' is a probability and so must be between 0 and 1."
