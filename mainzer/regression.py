@@ -3,7 +3,7 @@ import pandas as pd
 import tqdm
 
 from .intervals import IntervalQuery
-from .graph_ops import get_regression_bigraph
+from .graph_ops import RegressionGraph
 from .models import fit_DeconvolvedUnderfit
 from .molecule_filters import charge_sequence_filter
 
@@ -34,38 +34,34 @@ class Matchmaker(object):
         self.ions.neighbourhood_intensity.fillna(0, inplace=True)# NaN = 0 
 
     def assign_isotopologues_to_centroids(self, min_neighbourhood_intensity=0):
-        #TODO: one might optimize this for graph purposes
         promissing_ions = self.ions[self.ions.neighbourhood_intensity > 0][self.ION]
         promissing_ions.drop_duplicates(inplace=True)
-        full_envelopes = pd.concat((self.isotopic_calculator.to_frame(form, z)
-                                    for form, z in promissing_ions.itertuples(index=False)),
-                                   ignore_index=True)
+
+        # using pandas it is faster to provide larger chunks of data to C++.
+        # In C++ one could efficiently implement this code totally differently: asking for presence of isotopologues one after another.
+        def iter_local_isotopologues2centroids(intensities, centroids):
+            for formula, charge in promissing_ions.itertuples(index=False):
+                mz, probs = self.isotopic_calculator.spectrum(formula, charge)
+                edges = self.centroids_intervals.point_query(mz)
+                if len(edges.query):
+                    yield pd.DataFrame({
+                        "formula": formula,
+                        "charge": charge,
+                        "centroid": centroids[edges.interval_db],
+                        "I_sum": intensities[edges.interval_db],
+                        "mz": mz[edges.query],
+                        "prob": probs[edges.query]
+                    })
+        #TODO: alternative to make graph here immediately
+        isotopologues2centroids = \
+            pd.concat(iter_local_isotopologues2centroids(self.centroids.I_sum.values, 
+                                                         self.centroids.index.values),
+                      ignore_index=True)
+        isotopologues2centroids['mzprob'] = \
+            isotopologues2centroids.mz * isotopologues2centroids.prob
         
-        # edges = self.centroids_intervals.point_query(full_envelopes.head(50).mz)
-        # full_envelopes.iloc[edges.query]
-
-        # i = 0 
-        # for i in range(len(full_envelopes)):
-        #     edges = self.centroids_intervals.point_query(full_envelopes.mz.iloc[(i*100):((i+1)*100)])
-        #     full_envelopes.iloc[edges.query].reset_index(drop=True)
-        # np.ulonglong
-        # np.arange()
-
-        edges = self.centroids_intervals.point_query(full_envelopes.mz.values)
-        print(edges.query.min()) # wow
-        print(edges.query.max()) # wow
-
-        important_columns = ["I_sum","left_mz","right_mz"]
-
-        isotopologue2centroid = pd.concat([
-            full_envelopes.iloc[edges.query].reset_index(drop=True),
-            self.centroids[important_columns].iloc[edges.interval_db].reset_index()
-        ], axis=1)
-
-        # assert all((isotopologue2centroid.mz >= isotopologue2centroid.left_mz).values & (isotopologue2centroid.mz <= isotopologue2centroid.right_mz).values ), "Some theoretical m/z values are not inside  intervals matched to centroids."
-        isotopologue2centroid['mzprob'] = isotopologue2centroid.mz * isotopologue2centroid.prob
-        # here we add I_sum to the key because it is unique to each cluster.
-        self.ion2centroids = isotopologue2centroid.groupby(self.ION+["cluster","I_sum"]).agg(
+        # here we add I_sum to the key because it is unique to each centroid.
+        self.ion2centroids = isotopologues2centroids.groupby(self.ION+["centroid","I_sum"]).agg(
             {"mz":[min, max],
              "mzprob":[sum, len],
              "prob":sum}
@@ -110,12 +106,12 @@ class Matchmaker(object):
         self.ion_assignments_summary = self.ion2centroids.groupby(self.ION).agg(
             {"isospec_isotopologues_prob":"sum",
              "I_sum":"sum", # Here sum is OK: we sum different centroids' intensities.
-             "cluster":"nunique"}
+             "centroid":"nunique"}
         )
         self.ion_assignments_summary = self.ion_assignments_summary.rename(
             columns={"isospec_isotopologues_prob":"isospec_prob_with_signal",
                      "I_sum":"proximity_intensity", 
-                     "cluster":"touched_centroids"}
+                     "centroid":"touched_centroids"}
         )
         self.ion_assignments_summary = pd.merge(
             self.ion_assignments_summary,
@@ -166,6 +162,87 @@ class Matchmaker(object):
             self.ions = charge_sequence_filter(self.ions,
                                                min_charge_sequence_length)
 
+    def build_regression_bigraph(self):
+        self.promissing_ions2centroids = \
+            pd.merge(self.ion2centroids,
+                     self.ions[["name"]+self.ION],
+                     on=self.ION)
+
+        self.promissing_ions_assignments_summary = \
+            pd.merge(self.ion_assignments_summary,
+                     self.ions[["name"]+self.ION],
+                     on=self.ION)
+
+        self.G = RegressionGraph()
+        for r in self.promissing_ions2centroids.itertuples():
+            ion = r.formula, r.charge
+            self.G.add_edge(ion, r.centroid, prob=r.isospec_isotopologues_prob )
+            self.G.nodes[r.centroid]["intensity"] = r.I_sum
+
+        for r in self.promissing_ions_assignments_summary.itertuples():
+            ion = r.formula, r.charge
+            self.G.nodes[ion]["prob_out"] = r.isospec_prob_without_signal
+
+    def get_chimeric_ions(self):
+        return list(self.G.iter_convoluted_ions())
+
+    def fit_multiple_ion_regressions(self,
+                                     fitting_to_void_penalty=1.0, 
+                                     merge_zeros=True,
+                                     normalize_X=False,
+                                     verbose=True):
+        #TODO: might not run estimates for single candidates: they are already calculated and 
+        # but the problem is that the user might set different quantile.
+        # so don't let him.
+        iter_problems = self.G.iter_regression_problems(merge_zeros, normalize_X)
+        if verbose:
+            iter_problems = tqdm.tqdm(iter_problems,
+                                      total=self.G.count_connected_components())
+        
+        self.models = [fit_DeconvolvedUnderfit(X,Y, lam=fitting_to_void_penalty)
+                       for X,Y in iter_problems]
+
+        self.chimeric_intensity_estimates = pd.concat([m.coef for m in self.models])
+        self.chimeric_intensity_estimates.name = 'chimeric_intensity_estimate'
+        self.chimeric_intensity_estimates.index.names = self.ION
+
+        self.ions = pd.merge(# passing estimates unto ions
+            self.ions,
+            self.chimeric_intensity_estimates,
+            left_on=self.ION,
+            right_index=True,
+            how="left"
+        )
+        self.promissing_ions2centroids = pd.merge(# passing estimates unto ions
+            self.promissing_ions2centroids,
+            self.chimeric_intensity_estimates,
+            left_on=self.ION,
+            right_index=True,
+            how="left"
+        )
+        self.promissing_ions2centroids["chimeric_peak_intensity"] = \
+            self.promissing_ions2centroids.chimeric_intensity_estimate * \
+            self.promissing_ions2centroids.isospec_isotopologues_prob
+
+        self.chimeric_intensity_in_centroid = self.promissing_ions2centroids.groupby("centroid").chimeric_peak_intensity.sum()
+        self.chimeric_intensity_in_centroid.name = "chimeric_intensity_in_centroid"
+        self.centroids = pd.merge(
+            self.centroids,
+            self.chimeric_intensity_in_centroid,
+            left_index=True,
+            right_index=True,
+            how='left'
+        )
+        self.centroids.chimeric_intensity_in_centroid.fillna(0.0, inplace=True)
+        self.centroids["chimeric_remainder"] = \
+            self.centroids.I_sum - self.centroids.chimeric_intensity_in_centroid
+
+        assert np.all(np.abs(self.centroids.chimeric_remainder[self.centroids.chimeric_remainder < 0]) < 1e-10), "The unfitted probabilties are negative and big."
+        self.centroids.chimeric_remainder = np.where(
+                self.centroids.chimeric_remainder < 0,
+                0, 
+                self.centroids.chimeric_remainder)
+
     @staticmethod
     def from_existing_centroids(existing_matchmaker, new_ions):
         """This is introduced to save time on unnecessary initialization."""
@@ -175,19 +252,17 @@ class Matchmaker(object):
 
 
 
-def single_molecule_regression(ions,
-                               clusters,
-                               isotopic_calculator,
-                               neighbourhood_thr=1.1,
-                               underfitting_quantile=0.0,
-                               min_total_fitted_probability=.8,
-                               min_max_intensity_threshold=100,
-                               min_charge_sequence_length=1):
-    matchmaker = Matchmaker(ions, clusters, isotopic_calculator)
+def single_precursor_regression(ions,
+                                centroids,
+                                isotopic_calculator,
+                                neighbourhood_thr=1.1,
+                                underfitting_quantile=0.0,
+                                min_total_fitted_probability=.8,
+                                min_max_intensity_threshold=100,
+                                min_charge_sequence_length=1):
+    matchmaker = Matchmaker(ions, centroids, isotopic_calculator)
     matchmaker.get_isotopic_summaries()
     matchmaker.get_neighbourhood_intensities(neighbourhood_thr)
-    self = matchmaker
-
     matchmaker.assign_isotopologues_to_centroids()
     matchmaker.estimate_max_ion_intensity(underfitting_quantile)
     matchmaker.summarize_ion_assignments()
@@ -200,156 +275,42 @@ def single_molecule_regression(ions,
     return matchmaker
 
 
-
-def single_molecule_regression_old(centroids,
-                                   ions_df,
-                                   isotopic_coverage=.95,
-                                   isotopic_bin_size=.1,
-                                   neighbourhood_thr=1.1,
-                                   underfitting_quantile=0.05,
-                                   verbose=False,
-                                   **kwds):
-
-    assert all(colname in ions_df.columns for colname in ("name","formula","charge")), "'ions_df' should be a pandas.DataFrame with columns 'name', 'formula', and 'charge'."
-    assert isotopic_coverage >= 0 and isotopic_coverage <= 1, "'isotopic_coverage' is a probability and so must be between 0 and 1."
-    assert underfitting_quantile >= 0 and underfitting_quantile <= 1, "'underfitting_quantile' is a probability and so must be between 0 and 1."
-
-    if verbose:
-        print("Getting Isotopic Envelopes")
-
-    isotopic_envelopes = IsotopicEnvelopes(ions_df.formula.unique(),
-                                           isotopic_coverage,
-                                           isotopic_bin_size)
-    if DEBUG:
-        print("Ctored")
-
-    ions_df = ions_df.merge(isotopic_envelopes.charged_envelopes_summary(ions_df.formula, ions_df.charge))
-    
-    if DEBUG:
-        print("merged")
-    
-    ion_idx = ['formula','charge']
-    ions_df = ions_df.set_index(ion_idx)
-
-    if verbose:
-        print(f"Getting intensity of signal centroids in a {neighbourhood_thr}-neighbourhood of theoretical peaks.")
-
-    minmax_signals = centroids.interval_query(ions_df.min_isospec_mz - neighbourhood_thr,
-                                              ions_df.max_isospec_mz + neighbourhood_thr)
-    ions_df["neighbourhood_intensity"] = minmax_signals.I_sum.groupby(ion_idx).sum()
-    ions_df.neighbourhood_intensity.fillna(0, inplace=True)# NaN = 0 intensity
-    del minmax_signals
+def chimeric_regression(ions,
+                        centroids,
+                        isotopic_calculator,
+                        neighbourhood_thr=1.1,
+                        underfitting_quantile=0.0,
+                        min_total_fitted_probability=.8,
+                        min_max_intensity_threshold=100,
+                        min_charge_sequence_length=1,
+                        fitting_to_void_penalty=1.0, 
+                        merge_zeros=True,
+                        normalize_X=False,
+                        verbose=True):
+    matchmaker = Matchmaker(ions, centroids, isotopic_calculator)
+    matchmaker.get_isotopic_summaries()
+    matchmaker.get_neighbourhood_intensities(neighbourhood_thr)
+    matchmaker.assign_isotopologues_to_centroids()
+    matchmaker.estimate_max_ion_intensity(underfitting_quantile)
+    matchmaker.summarize_ion_assignments()
+    matchmaker.add_ion_assignments_summary_to_ions()
+    matchmaker.get_theoretical_intensities_where_no_signal_was_matched()
+    matchmaker.get_total_intensity_errors_for_maximal_intensity_estimates()
+    matchmaker.filter_ions_that_do_not_fit_centroids(min_total_fitted_probability)
+    matchmaker.filter_ions_with_low_maximal_intensity(min_max_intensity_threshold)
+    matchmaker.charge_ions_that_are_not_in_chargestate_sequence(min_charge_sequence_length)
+    matchmaker.build_regression_bigraph()
+    matchmaker.get_chimeric_ions()
+    matchmaker.fit_multiple_ion_regressions()
+    return matchmaker
 
 
-    if verbose:
-        print("Assigning isotopic envelope peaks to real signal centroids.")
-
-    full_envelopes = isotopic_envelopes.to_frame(ions_df[ions_df.neighbourhood_intensity > 0].index)
-    peak_assignments = centroids.point_query(full_envelopes.isospec_mz)
-    peak_assignments = pd.concat([full_envelopes.iloc[peak_assignments.index],
-                                  peak_assignments], axis=1)
-    del full_envelopes
-
-    assert np.all(peak_assignments.isospec_mz == peak_assignments.query_mz), "Something is wrong while creating peak assignments: query m/z not the same as isospec_mz."
-    peak_assignments.drop("query_mz", axis=1, inplace=True) # "query_mz" is the same as "isospec_mz"
-    peak_assignments = peak_assignments[peak_assignments.I_sum > 0]
-    # need to have a measure of error
-
-    # signal-based centroiding of isospec peaks! so we do not really need that binning!!!
-    # watch out for summing "I_sum" twice! "I_sum" must be part of a group here:
-    peak_assignments_clustered = peak_assignments.groupby(ion_idx + ["cluster","left_mz","right_mz","mz_apex","I_sum"]).agg({"isospec_prob":"sum", "isospec_mz":['min','max']}).reset_index()
-    peak_assignments_clustered.columns = [f"{a}_{b}" if a == "isospec_mz" else a for a, b in peak_assignments_clustered.columns] # how I hate pandas..
-
-
-    if verbose:
-        print("Getting maximal intensity estimates.")
-
-    max_intensity = peak_assignments_clustered.set_index(ion_idx)
-    max_intensity = max_intensity.I_sum / max_intensity.isospec_prob
-    max_intensity = max_intensity.groupby(ion_idx).quantile(underfitting_quantile)
-    ions_df["maximal_intensity"] = max_intensity
-    ions_df.maximal_intensity.fillna(0, inplace=True)
-
-
-    if verbose:
-        print("Summarizing assignments.")
-
-    peak_assignments_summary = peak_assignments_clustered.groupby(ion_idx).agg({"isospec_prob":"sum", "I_sum":"sum", "cluster":"nunique"}).rename(columns={"isospec_prob":"isospec_prob_with_signal", "I_sum":"proximity_intensity", "cluster":"touched_centroids"})
-    peak_assignments_summary["isospec_final_coverage"] = ions_df.isospec_final_coverage
-    peak_assignments_summary["isospec_prob_without_signal"] = \
-        peak_assignments_summary.isospec_final_coverage - \
-        peak_assignments_summary.isospec_prob_with_signal
-
-    # adding peak assignment summary to ions_df
-    ions_df = pd.merge(ions_df,
-                    peak_assignments_summary[['isospec_prob_with_signal',
-                                              'isospec_prob_without_signal',
-                                              'proximity_intensity',
-                                              'touched_centroids']], 
-                    left_index=True, 
-                    right_index=True,
-                    how='left')
-    ions_df.isospec_prob_with_signal.fillna(0, inplace=True)
-    ions_df.proximity_intensity.fillna(0, inplace=True)
-    ions_df.touched_centroids.fillna(0, inplace=True)
-    ions_df.touched_centroids = ions_df.touched_centroids.astype(int)
-    ions_df.isospec_prob_without_signal = np.where(ions_df.isospec_prob_without_signal.isna(), ions_df.isospec_final_coverage, ions_df.isospec_prob_without_signal)
-
-    return ( ions_df, 
-             centroids,
-             peak_assignments_clustered,
-             peak_assignments_summary )
-
-
-
-def multiple_molecule_regression(ions_df,
-                                 centroids,
-                                 peak_assignments_clustered, 
-                                 peak_assignments_summary,
-                                 fitting_to_void_penalty=1.0,
-                                 verbose=False):
-    ion_idx = ['formula','charge']
-
-    if verbose:
-        print("Building deconvolution graph.")
-
-    G = get_regression_bigraph(peak_assignments_clustered, peak_assignments_summary)
-    convoluted_ions_df = list(G.iter_convoluted_ions_df()) # groups of ions_df competing for signal explanation
-
-
-    if verbose:
-        print("Fitting multiple molecule regressions_df.")
-    iter_problems = G.iter_regression_problems(merge_zeros=True,
-                                               normalize_X=False) # think about this normalization
-
-    if verbose:
-        iter_problems = tqdm.tqdm(iter_problems, total=len(convoluted_ions_df))
-    
-    models = [fit_DeconvolvedUnderfit(X,Y, lam=fitting_to_void_penalty)
-              for X,Y in iter_problems]
-
-    estimates = pd.concat([m.coef for m in models])
-    estimates.name = 'estimate'
-    estimates.index.names = ion_idx
-
-    ions_df["deconvolved_intensity"] = estimates
-    ions_df.deconvolved_intensity.fillna(0, inplace=True)
-
-    # getting errors
-    peak_assignments_clustered = peak_assignments_clustered.merge(estimates,
-                                                                  left_on=ion_idx,
-                                                                  right_index=True).rename(columns={"estimate":"alpha"})
-    peak_assignments_clustered.alpha.fillna(0, inplace=True)
-    peak_assignments_clustered["under_estimate"] = \
-        peak_assignments_clustered.alpha * peak_assignments_clustered.isospec_prob
-    
-    centroids.df["under_estimate"] = peak_assignments_clustered.groupby("cluster").under_estimate.sum()
-    centroids.df.under_estimate.fillna(0.0, inplace=True)
-    centroids.df["under_estimate_remainder"] = centroids.df.I_sum - centroids.df.under_estimate
-
-    # assert np.all(ions_df.maximal_intensity >= ions_df.deconvolved_intensity + eps), "Maximal estimates lower than deconvolved!"
-    #TODO: check if the difference is small: eps
-
-    if verbose:
-        print("Multiple regression done!")
-    return ions_df, centroids, peak_assignments_clustered, G, convoluted_ions_df, models
+def turn_single_precursor_regression_chimeric(matchmaker,
+                                              fitting_to_void_penalty=1.0, 
+                                              merge_zeros=True,
+                                              normalize_X=False,
+                                              verbose=True):
+    matchmaker.build_regression_bigraph()
+    matchmaker.get_chimeric_ions()
+    matchmaker.fit_multiple_ion_regressions()
+    return matchmaker

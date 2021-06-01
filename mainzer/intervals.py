@@ -7,7 +7,7 @@ if False: # Do NOT remove this: this is to trick pyinstaller into
 
 Indices = namedtuple("IndexEdges", "query interval_db")
 
-
+#TODO: reimplement this ourselves to get rid of NCLS dependency: it's fishy
 class IntervalQuery(object):
     """Structure for rapid building of a bi-partite graph of interval intersections.
 

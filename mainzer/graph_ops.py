@@ -73,20 +73,3 @@ class RegressionGraph(nx.Graph):
     def unmatched_probability(self):
         return nx.get_node_attributes(self, "prob_out")
 
-
-def get_regression_bigraph(peak_assignments, peak_assignments_summary):
-    G = RegressionGraph()
-    for formula, charge, prob, cluster, intensity in zip(peak_assignments.formula,
-                                                         peak_assignments.charge,
-                                                         peak_assignments.isospec_prob,
-                                                         peak_assignments.cluster,
-                                                         peak_assignments.I_sum):
-        G.add_edge( (formula, charge), cluster, prob=prob )
-        G.nodes[cluster]["intensity"] = intensity
-
-    # add non-fitted probabilities to charged formulas
-    for ion, prob_out in zip(peak_assignments_summary.index,
-                             peak_assignments_summary.isospec_prob_without_signal):
-        G.nodes[ion]["prob_out"] = prob_out
-
-    return G

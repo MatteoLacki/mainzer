@@ -9,7 +9,7 @@ from .isotope_ops import IsotopicCalculator
 from .regression import single_molecule_regression, multiple_molecule_regression
 from .molecule_ops import mered_proteins, mered_lipids, molecules2df, crosslink, merge_free_lipids_and_promissing_proteins
 from .read import read_spectrum, read_molecules_for_lipido
-from .regression import single_molecule_regression
+from .regression import single_precursor_regression, turn_single_precursor_regression_chimeric
 
 
 def lipido_IO(settings):
@@ -91,15 +91,15 @@ def run_lipido(# spectrum preprocessing
                **kwds):
     
     if verbose:
-        print("Centroiding") #TODO: change for logger
+        print("Centroiding")#TODO: change for logger
 
     #TODO: reintroduce Michals baseline correction idea
-    clusters_df = cluster_spectrum(mz, intensity)
+    cenroids_df = cluster_spectrum(mz, intensity)
     
-    # this is simple: filerting on `max_intensity` in `clusters_df`
-    filtered_clusters_df = clusters_df[(clusters_df.I_max >= min_intensity_threshold).values &\
-                                       (clusters_df.left_mz >= min_mz).values &\
-                                       (clusters_df.right_mz <= max_mz).values].copy()
+    # this is simple: filerting on `max_intensity` in `cenroids_df`
+    filtered_cenroids_df = cenroids_df[(cenroids_df.I_max >= min_intensity_threshold).values &\
+                                       (cenroids_df.left_mz >= min_mz).values &\
+                                       (cenroids_df.right_mz <= max_mz).values].copy()
 
     if verbose:
         print("Getting proteins mers")#TODO: change for logger
@@ -117,15 +117,14 @@ def run_lipido(# spectrum preprocessing
     if verbose:
         print("Checking for promissing proteins")
 
-    matchmaker = single_molecule_regression(protein_ions,
-                                            filtered_clusters_df,
-                                            isotopic_calculator,
-                                            neighbourhood_thr,
-                                            underfitting_quantile,
-                                            min_total_fitted_probability,
-                                            min_max_intensity_threshold,
-                                            min_charge_sequence_length)
-    
+    matchmaker = single_precursor_regression(protein_ions,
+                                             filtered_cenroids_df,
+                                             isotopic_calculator,
+                                             neighbourhood_thr,
+                                             underfitting_quantile,
+                                             min_total_fitted_probability,
+                                             min_max_intensity_threshold,
+                                             min_charge_sequence_length)
     promissing_protein_ions_df = matchmaker.ions
     
     if verbose:
@@ -141,7 +140,7 @@ def run_lipido(# spectrum preprocessing
                                      max_free_lipid_cluster_charge))
 
     if verbose:
-        print("Getting promissing protein-lipid clusters.")
+        print("Getting promissing protein-lipid cenroids.")
 
     promissing_protein_lipid_complexes = \
         merge_free_lipids_and_promissing_proteins(free_lipids_no_charge_df,
@@ -152,90 +151,30 @@ def run_lipido(# spectrum preprocessing
                                  promissing_protein_lipid_complexes,
                                  free_lipids_with_charge_df],
                                  ignore_index=True)
-    
-    # ions = promissing_ions
-    # clusters = filtered_clusters_df 
-    full_matchmaker = single_molecule_regression(promissing_ions,
-                                                 filtered_clusters_df,
-                                                 isotopic_calculator,
-                                                 neighbourhood_thr,
-                                                 underfitting_quantile,
-                                                 min_total_fitted_probability,
-                                                 min_max_intensity_threshold,
-                                                 min_charge_sequence_length)
 
-    # PLC_FLC = single_molecule_regression(filtered_centroids,
-    #                                      PLC_FLC,
-    #                                      isotopic_coverage,
-    #                                      isotopic_bin_size,
-    #                                      neighbourhood_thr,
-    #                                      underfitting_quantile,
-    #                                      verbose)
-    
-    # PLC_FLC_intense = PLC_FLC[ PLC_FLC.maximal_intensity >= minimal_maximal_intensity_threshold].copy()
-
-    # import matplotlib.pyplot as plt
-    
-    # plt.hist(PLC_FLC_intense.isospec_prob_with_signal)
-    # plt.show()
-    # plt.scatter(np.log(PLC_FLC_intense.maximal_intensity),
-    #             np.log(PLC_FLC_intense.proximity_intensity),
-    #             c=PLC_FLC_intense.isospec_prob_with_signal,
-    #             s=1)
-    # plt.show()
-    # plt.scatter(
-    #             PLC_FLC_intense.isospec_prob_with_signal,
-    #             np.log10(PLC_FLC_intense.maximal_intensity / PLC_FLC_intense.neighbourhood_intensity),
-    #             s=1)
-    # plt.show()
-    # I need to export some misfits information.
-
-    # run full
-
-
-    # dict(crosslink(protein_mers, free_lipid_mers)) # too big!
-
-    # if verbose:
-    #     print("Looking for charged proteins.")
-    
-    
-    
-
-    # ions, centroids, peak_assignments_clustered, peak_assignments_summary = \
-    #     single_molecule_regression( centroids,
-    #                                 ions,
-    #                                 isotopic_coverage,
-    #                                 isotopic_bin_size,
-    #                                 neighbourhood_thr,
-    #                                 underfitting_quantile,
-    #                                 verbose )
-    
-
-    # if verbose:
-    #     print("Performing singe molecule deconvolution.")
-    # ions, centroids, peak_assignments_clustered, peak_assignments_summary = \
-    #     single_molecule_regression( centroids,
-    #                                 ions,
-    #                                 isotopic_coverage,
-    #                                 isotopic_bin_size,
-    #                                 neighbourhood_thr,
-    #                                 underfitting_quantile,
-    #                                 verbose )
-    
-    # here we need some filtering of ions
+    full_matchmaker = single_precursor_regression(promissing_ions,
+                                                  filtered_cenroids_df,
+                                                  isotopic_calculator,
+                                                  neighbourhood_thr,
+                                                  underfitting_quantile,
+                                                  min_total_fitted_probability,
+                                                  min_max_intensity_threshold,
+                                                  min_charge_sequence_length)
 
     if deconvolve:
         if verbose:
-            print("Performing multiple molecule deconvolution.")
-        ions, centroids, peak_assignments_clustered, G, convoluted_ions, models = \
-            multiple_molecule_regression( ions,
-                                          centroids,
-                                          peak_assignments_clustered, 
-                                          peak_assignments_summary,
-                                          fitting_to_void_penalty,
-                                          verbose )
+            print("Performing chimeric regression.")
+        full_matchmaker = turn_single_precursor_regression_chimeric(
+            full_matchmaker,
+            fitting_to_void_penalty, 
+            merge_zeros=True,
+            normalize_X=False,
+            verbose=verbose
+        )
 
-    #TODO: additional tagging of ions based on found results.
+    #TODO: ??? additional tagging of ions based on found results.?????
+
+
 
     column_order = ["name"]
     if "deconvolved_intensity" in ions.columns:
@@ -257,8 +196,8 @@ def run_lipido(# spectrum preprocessing
 
     ions = ions[column_order]
     protein_names = "|".join(molecules[molecules.group == "protein"].name)
-    (_, lipid_clusters), (_, proteins) = ions.groupby(ions.name.str.contains(protein_names), group_keys=False)
+    (_, lipid_cenroids), (_, proteins) = ions.groupby(ions.name.str.contains(protein_names), group_keys=False)
 
-    return proteins, lipid_clusters, centroids
+    return proteins, lipid_cenroids, centroids
 
 
