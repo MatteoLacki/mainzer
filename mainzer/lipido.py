@@ -3,10 +3,9 @@ import json
 import pandas as pd
 import pathlib
 
-from .baseline import strip_baseline
+# from .baseline import strip_baseline
 from .signal_ops import cluster_spectrum
 from .isotope_ops import IsotopicCalculator
-from .regression import single_molecule_regression, multiple_molecule_regression
 from .molecule_ops import mered_proteins, mered_lipids, molecules2df, crosslink, merge_free_lipids_and_promissing_proteins
 from .read import read_spectrum, read_molecules_for_lipido
 from .regression import single_precursor_regression, turn_single_precursor_regression_chimeric
@@ -62,8 +61,6 @@ def run_lipido(# spectrum preprocessing
                max_mz,
                # proteins
                base_proteins,
-               min_protein_mers,
-               max_protein_mers,
                min_protein_cluster_charge,
                max_protein_cluster_charge,
                # lipids
@@ -74,14 +71,16 @@ def run_lipido(# spectrum preprocessing
                max_free_lipid_cluster_charge,
                # crosslinking
                only_heteromers, # discard homomers
-               # charge based filter: turn off by setting to 1
+               # ion filters
+               min_neighbourhood_intensity,
                min_charge_sequence_length,
+               min_total_fitted_probability,
                # single molecule regression
                isotopic_coverage,
                isotopic_bin_size,
                neighbourhood_thr,
                underfitting_quantile,
-               minimal_maximal_intensity_threshold,
+               min_max_intensity_threshold,
                # multiple molecule regression
                deconvolve,
                fitting_to_void_penalty,
@@ -92,13 +91,13 @@ def run_lipido(# spectrum preprocessing
     if verbose:
         print("Centroiding")#TODO: change for logger
 
-    #TODO: reintroduce Michals baseline correction idea
+    #TODO: reintroduce1 Michals baseline correction idea
     centroids_df = cluster_spectrum(mz, intensity)
     
     # this is simple: filerting on `max_intensity` in `centroids_df`
     filtered_centroids_df = centroids_df[(centroids_df.highest_intensity >= min_highest_intensity).values &\
-                                       (centroids_df.left_mz >= min_mz).values &\
-                                       (centroids_df.right_mz <= max_mz).values].copy()
+                                         (centroids_df.left_mz >= min_mz).values &\
+                                         (centroids_df.right_mz <= max_mz).values].copy()
 
     if verbose:
         print("Getting proteins mers")#TODO: change for logger
@@ -116,14 +115,22 @@ def run_lipido(# spectrum preprocessing
     if verbose:
         print("Checking for promissing proteins")
 
-    matchmaker = single_precursor_regression(protein_ions,
-                                             filtered_centroids_df,
-                                             isotopic_calculator,
-                                             neighbourhood_thr,
-                                             underfitting_quantile,
-                                             min_total_fitted_probability,
-                                             min_max_intensity_threshold,
-                                             min_charge_sequence_length)
+    regression_kwds = {
+        "centroids": filtered_centroids_df,
+        "isotopic_calculator": isotopic_calculator,
+        "neighbourhood_thr": neighbourhood_thr,
+        "min_neighbourhood_intensity": min_neighbourhood_intensity,
+        "underfitting_quantile": underfitting_quantile,
+        "min_total_fitted_probability": min_total_fitted_probability,
+        "min_max_intensity_threshold": min_max_intensity_threshold,
+        "verbose": verbose
+    }
+
+    matchmaker = single_precursor_regression(
+        protein_ions,
+        min_charge_sequence_length=min_charge_sequence_length,
+        **regression_kwds
+    )
     promissing_protein_ions_df = matchmaker.ions
     
     if verbose:
@@ -139,7 +146,7 @@ def run_lipido(# spectrum preprocessing
                                      max_free_lipid_cluster_charge))
 
     if verbose:
-        print("Getting promissing protein-lipid cenroids.")
+        print("Getting promissing protein-lipid centroids.")
 
     promissing_protein_lipid_complexes = \
         merge_free_lipids_and_promissing_proteins(free_lipids_no_charge_df,
@@ -156,13 +163,8 @@ def run_lipido(# spectrum preprocessing
                                  ignore_index=True)
 
     full_matchmaker = single_precursor_regression(promissing_ions,
-                                                  filtered_centroids_df,
-                                                  isotopic_calculator,
-                                                  neighbourhood_thr,
-                                                  underfitting_quantile,
-                                                  min_total_fitted_probability,
-                                                  min_max_intensity_threshold,
-                                                  1)
+                                                  min_charge_sequence_length=1,
+                                                  **regression_kwds)
 
     if deconvolve:
         if verbose:
