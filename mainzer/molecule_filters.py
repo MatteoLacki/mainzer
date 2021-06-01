@@ -28,7 +28,7 @@ def charge_sequence_filter(ions, min_charge_sequence_length=3):
     for name, ion in ions.groupby("name"):
         for idx in iter_charge_sequence_groups(ion.charge, min_charge_sequence_length):
             sequence_charge_group = ion.iloc[idx].copy()
-            sequence_charge_group["group_id"] = i
+            sequence_charge_group["charge_sequence_group"] = i
             sequence_charge_groups.append(sequence_charge_group)
             i += 1
     return pd.concat(sequence_charge_groups)

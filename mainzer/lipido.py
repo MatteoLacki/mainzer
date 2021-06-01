@@ -58,7 +58,7 @@ def lipido_IO(settings):
 def run_lipido(# spectrum preprocessing
                mz,
                intensity,
-               min_intensity_threshold,
+               min_highest_intensity,
                min_mz,
                max_mz,
                # proteins
@@ -94,12 +94,12 @@ def run_lipido(# spectrum preprocessing
         print("Centroiding")#TODO: change for logger
 
     #TODO: reintroduce Michals baseline correction idea
-    cenroids_df = cluster_spectrum(mz, intensity)
+    centroids_df = cluster_spectrum(mz, intensity)
     
-    # this is simple: filerting on `max_intensity` in `cenroids_df`
-    filtered_cenroids_df = cenroids_df[(cenroids_df.I_max >= min_intensity_threshold).values &\
-                                       (cenroids_df.left_mz >= min_mz).values &\
-                                       (cenroids_df.right_mz <= max_mz).values].copy()
+    # this is simple: filerting on `max_intensity` in `centroids_df`
+    filtered_centroids_df = centroids_df[(centroids_df.highest_intensity >= min_highest_intensity).values &\
+                                       (centroids_df.left_mz >= min_mz).values &\
+                                       (centroids_df.right_mz <= max_mz).values].copy()
 
     if verbose:
         print("Getting proteins mers")#TODO: change for logger
@@ -118,7 +118,7 @@ def run_lipido(# spectrum preprocessing
         print("Checking for promissing proteins")
 
     matchmaker = single_precursor_regression(protein_ions,
-                                             filtered_cenroids_df,
+                                             filtered_centroids_df,
                                              isotopic_calculator,
                                              neighbourhood_thr,
                                              underfitting_quantile,
@@ -146,6 +146,10 @@ def run_lipido(# spectrum preprocessing
         merge_free_lipids_and_promissing_proteins(free_lipids_no_charge_df,
                                                   promissing_protein_ions_df)
     
+    protein_ions['contains_protein'] = True
+    promissing_protein_lipid_complexes['contains_protein'] = True
+    free_lipids_with_charge_df['contains_protein'] = False
+    
     # Promissing Ions = Promissing Proteins + Protein Lipid Clusters + Free Lipid Clusters
     promissing_ions = pd.concat([protein_ions,
                                  promissing_protein_lipid_complexes,
@@ -153,13 +157,13 @@ def run_lipido(# spectrum preprocessing
                                  ignore_index=True)
 
     full_matchmaker = single_precursor_regression(promissing_ions,
-                                                  filtered_cenroids_df,
+                                                  filtered_centroids_df,
                                                   isotopic_calculator,
                                                   neighbourhood_thr,
                                                   underfitting_quantile,
                                                   min_total_fitted_probability,
                                                   min_max_intensity_threshold,
-                                                  min_charge_sequence_length)
+                                                  1)
 
     if deconvolve:
         if verbose:
@@ -172,32 +176,42 @@ def run_lipido(# spectrum preprocessing
             verbose=verbose
         )
 
-    #TODO: ??? additional tagging of ions based on found results.?????
+    final_ions = full_matchmaker.ions.copy()
+    column_order = ["name", "contains_protein", "formula", "charge"]
+    sort_cols = ["charge","chimeric_intensity_estimate"] if deconvolve else ["charge","maximal_intensity_estimate"]
+    final_ions = final_ions.sort_values(sort_cols, ascending=[True, False])    
+    if deconvolve:
+        column_order.append("chimeric_intensity_estimate")
 
+    column_order += [ "maximal_intensity_estimate",
+                      "neighbourhood_intensity",
+                      "envelope_size",
+                      "envelope_total_prob",
+                      "envelope_min_mz",
+                      "envelope_max_mz",
+                      "envelope_proximity_intensity",
+                      "envelope_matched_to_signal",
+                      "envelope_unmatched_prob",
+                      "explainable_centroids",
+                      "single_precursor_fit_error",
+                      "single_precursor_unmatched_estimated_intensity",
+                      "single_precursor_total_error"]
 
-
-    column_order = ["name"]
-    if "deconvolved_intensity" in ions.columns:
-        ions = ions.sort_values(['charge','deconvolved_intensity'], ascending=[True, False])
-        column_order.append("deconvolved_intensity")
-    else:
-        ions = ions.sort_values(['charge','maximal_intensity'], ascending=[True, False])
-
-    column_order.extend([ "maximal_intensity",
-                          "proximity_intensity",
-                          "neighbourhood_intensity",
-                          "isospec_final_coverage",
-                          "isospec_prob_with_signal",
-                          "isospec_prob_without_signal",
-                          "touched_centroids",
-                          "isospec_peaks_count",
-                          "min_isospec_mz",
-                          "max_isospec_mz" ])
-
-    ions = ions[column_order]
-    protein_names = "|".join(molecules[molecules.group == "protein"].name)
-    (_, lipid_cenroids), (_, proteins) = ions.groupby(ions.name.str.contains(protein_names), group_keys=False)
-
-    return proteins, lipid_cenroids, centroids
+    final_ions = final_ions[column_order]
+    
+    # make it easier to distinguish proteins..
+    proteins = final_ions[final_ions.contains_protein].copy().drop(columns="contains_protein")
+    free_lipid_clusters = final_ions[~final_ions.contains_protein].copy().drop(columns="contains_protein")
+    
+    centroids_df = pd.merge(
+        centroids_df,
+        full_matchmaker.centroids[["chimeric_intensity_in_centroid", "chimeric_remainder"]],
+        left_index=True,
+        right_index=True,
+        how='left'
+    )
+    centroids_df.fillna(0, inplace=True)
+    #TODO maybe it would make sense to 
+    return proteins, free_lipid_clusters, centroids_df
 
 

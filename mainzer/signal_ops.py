@@ -159,9 +159,11 @@ def estimate_mz2std(mz, intensity):
 
 def cluster_spectrum(mz, intensity):
     mz_apex, I_max, I_sum, mz_clusters, I_max_idx = centroid(mz, intensity)
-    clustered_spectrum = pd.DataFrame({"mz_apex":mz_apex, "I_max":I_max, "I_sum": I_sum})
+    clustered_spectrum = pd.DataFrame({"mz_apex": mz_apex,
+                                       "highest_intensity": I_max,
+                                       "integrated_intensity": I_sum})
     clustered_spectrum["left_idx"], clustered_spectrum["right_idx"] = get_cluster_ends(mz_clusters)
     clustered_spectrum["left_mz"] = mz[clustered_spectrum.left_idx]
     clustered_spectrum["right_mz"] = mz[clustered_spectrum.right_idx]
-    clustered_spectrum.index.name = 'cluster'
+    clustered_spectrum.index.name = 'centroid'
     return clustered_spectrum

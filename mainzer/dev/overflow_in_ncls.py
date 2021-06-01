@@ -10,7 +10,6 @@ from mainzer.molecule_ops import iter_mered_molecules, crosslink, molecules2df, 
 from mainzer.formulas import formula2counter, counter2formula, aa2formula
 from mainzer.read import read_spectrum, read_base_lipids, read_base_proteins
 from mainzer.signal_ops import cluster_spectrum
-from mainzer.centroiding import QueryCentroids
 from mainzer.regression import single_precursor_regression, turn_single_precursor_regression_chimeric
 from mainzer.molecule_filters import charge_sequence_filter
 from mainzer.isotope_ops import IsotopicCalculator
@@ -37,7 +36,7 @@ max_protein_cluster_charge = 100
 min_free_lipid_cluster_charge = 1
 max_free_lipid_cluster_charge = 5
 min_charge_sequence_length = 3
-min_intensity_threshold = 100
+min_highest_intensity = 100
 min_mz = 100
 max_mz = 18000
 isotopic_coverage = .95
