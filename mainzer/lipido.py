@@ -35,23 +35,22 @@ def lipido_IO(settings):
         print()
         print("It's business time!")
 
-    # proteins, lipid_clusters, centroids = run_lipido(mz=mz,
-    #                                                  intensty=intensity,
-    #                                                  base_proteins=base_proteins,
-    #                                                  base_lipids=base_lipids,
-    #                                                  **settings.settings)
+    proteins, free_lipid_clusters, centroids_df = run_lipido(mz=mz,
+                                                             intensty=intensity,
+                                                             base_proteins=base_proteins,
+                                                             base_lipids=base_lipids,
+                                                             **settings.settings)
+    final_folder = output_folder/analysis_time
 
-    # final_folder = output_folder/analysis_time
+    if verbose:
+        print("Saving results.")
+    proteins.to_csv(final_folder/"proteins.csv")
+    free_lipid_clusters.to_csv(final_folder/"free_lipid_clusters.csv")
+    centroids.df.to_csv(final_folder/"centroids.csv")
+    settings.save_toml(final_folder/"config.mainzer")
 
-    # if verbose:
-    #     print("Saving results.")
-    # proteins.to_csv(final_folder/"proteins.csv")
-    # lipid_clusters.to_csv(final_folder/"lipid_clusters.csv")
-    # centroids.df.to_csv(final_folder/"centroids.csv")
-    # settings.save_toml(final_folder/"config.mainzer")
-
-    # if verbose:
-    #     print("Thank you for letting Lipido do its job!")
+    if verbose:
+        print("Thank you for runnig Lipido!")
 
 
 # defaults are set in settings.py! no need to repeat them here.
@@ -213,5 +212,4 @@ def run_lipido(# spectrum preprocessing
     centroids_df.fillna(0, inplace=True)
     #TODO maybe it would make sense to 
     return proteins, free_lipid_clusters, centroids_df
-
 

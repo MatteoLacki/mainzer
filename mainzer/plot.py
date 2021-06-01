@@ -123,3 +123,13 @@ def plot_hexbin(x, y, show=True, **kwds):
     plt.hexbin(x,y,**kwds)
     if show:
         plt.show()
+
+def plot_fit(centroids_df, show=True):
+    from mainzer.plot import plot_spectrum
+    import matplotlib.pyplot as plt
+    plot_spectrum(centroids_df.mz_apex, centroids_df.integrated_intensity, show=False)
+    centroids_df_short = centroids_df.query("chimeric_intensity_in_centroid > 0")
+    plt.scatter(centroids_df_short.mz_apex, centroids_df_short.chimeric_intensity_in_centroid, c="red")
+    if show:
+        plt.show()
+
