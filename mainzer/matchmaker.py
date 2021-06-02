@@ -81,7 +81,7 @@ class Matchmaker(object):
         )
         self.ion2centroids.columns = ["min_mz", "max_mz", "tot_mzprob","isotopologues_cnt", "isotopologue_prob"]
         self.ion2centroids['weighted_mz'] = self.ion2centroids.tot_mzprob / self.ion2centroids.isotopologue_prob
-        self.ion2centroids.drop(columns="tot_mzprob")
+        self.ion2centroids.drop(columns="tot_mzprob", inplace=True)
         self.ion2centroids = self.ion2centroids.reset_index()
         self.ion2centroids.isotopologues_cnt = self.ion2centroids.isotopologues_cnt.astype(np.int64)
         self.ion2centroids["intensity_over_prob"] = self.ion2centroids.integrated_intensity / self.ion2centroids.isotopologue_prob
