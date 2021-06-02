@@ -53,7 +53,6 @@ def lipido_IO(settings):
     if verbose:
         print("Thank you for running Lipido!")
 
-
 # defaults are set in settings.py! no need to repeat them here.
 def run_lipido(# spectrum preprocessing
                mz,
