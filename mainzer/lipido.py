@@ -7,7 +7,7 @@ import pathlib
 from .signal_ops import cluster_spectrum
 from .isotope_ops import IsotopicCalculator
 from .molecule_ops import mered_proteins, mered_lipids, molecules2df, crosslink, merge_free_lipids_and_promissing_proteins
-from .read import read_spectrum, read_molecules_for_lipido
+from .read import read_spectrum, read_base_lipids, read_base_proteins
 from .regression import single_precursor_regression, turn_single_precursor_regression_chimeric
 
 
@@ -34,22 +34,24 @@ def lipido_IO(settings):
         print()
         print("It's business time!")
 
-    proteins, free_lipid_clusters, centroids_df = run_lipido(mz=mz,
-                                                             intensty=intensity,
-                                                             base_proteins=base_proteins,
-                                                             base_lipids=base_lipids,
-                                                             **settings.settings)
+    proteins, free_lipid_clusters, centroids_df = \
+        run_lipido(mz=mz,
+                   intensity=intensity,
+                   base_proteins=base_proteins,
+                   base_lipids=base_lipids,
+                   **settings.settings)
+
     final_folder = output_folder/analysis_time
 
     if verbose:
         print("Saving results.")
     proteins.to_csv(final_folder/"proteins.csv")
     free_lipid_clusters.to_csv(final_folder/"free_lipid_clusters.csv")
-    centroids.df.to_csv(final_folder/"centroids.csv")
+    centroids_df.to_csv(final_folder/"centroids.csv")
     settings.save_toml(final_folder/"config.mainzer")
 
     if verbose:
-        print("Thank you for runnig Lipido!")
+        print("Thank you for running Lipido!")
 
 
 # defaults are set in settings.py! no need to repeat them here.
@@ -82,7 +84,7 @@ def run_lipido(# spectrum preprocessing
                underfitting_quantile,
                min_max_intensity_threshold,
                # multiple molecule regression
-               deconvolve,
+               run_chimeric_regression,
                fitting_to_void_penalty,
                # verbosity might be removed in favor of a logger
                verbose=False,
@@ -166,7 +168,7 @@ def run_lipido(# spectrum preprocessing
                                                   min_charge_sequence_length=1,
                                                   **regression_kwds)
 
-    if deconvolve:
+    if run_chimeric_regression:
         if verbose:
             print("Performing chimeric regression.")
         full_matchmaker = turn_single_precursor_regression_chimeric(
@@ -179,9 +181,9 @@ def run_lipido(# spectrum preprocessing
 
     final_ions = full_matchmaker.ions.copy()
     column_order = ["name", "contains_protein", "formula", "charge"]
-    sort_cols = ["charge","chimeric_intensity_estimate"] if deconvolve else ["charge","maximal_intensity_estimate"]
+    sort_cols = ["charge","chimeric_intensity_estimate"] if run_chimeric_regression else ["charge","maximal_intensity_estimate"]
     final_ions = final_ions.sort_values(sort_cols, ascending=[True, False])    
-    if deconvolve:
+    if run_chimeric_regression:
         column_order.append("chimeric_intensity_estimate")
 
     column_order += [ "maximal_intensity_estimate",
