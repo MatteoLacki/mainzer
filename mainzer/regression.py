@@ -11,7 +11,9 @@ def single_precursor_regression(ions,
                                 min_max_intensity_threshold=100,
                                 min_charge_sequence_length=1,
                                 verbose=False):
-    matchmaker = Matchmaker(ions, centroids, isotopic_calculator)
+    matchmaker = Matchmaker(ions,
+                            centroids,
+                            isotopic_calculator)
     matchmaker.get_isotopic_summaries()
     matchmaker.get_neighbourhood_intensities(neighbourhood_thr)
     matchmaker.assign_isotopologues_to_centroids(min_neighbourhood_intensity, verbose)
@@ -53,10 +55,12 @@ def chimeric_regression(ions,
     matchmaker.charge_ions_that_are_not_in_chargestate_sequence(min_charge_sequence_length)
     matchmaker.build_regression_bigraph()
     matchmaker.get_chimeric_ions()
-    matchmaker.fit_multiple_ion_regressions(fitting_to_void_penalty, 
-                                            merge_zeros,
-                                            normalize_X,
-                                            verbose)
+    matchmaker.fit_multiple_ion_regressions(
+        fitting_to_void_penalty, 
+        merge_zeros,
+        normalize_X,
+        verbose
+    )
     return matchmaker
 
 
@@ -67,8 +71,9 @@ def turn_single_precursor_regression_chimeric(matchmaker,
                                               verbose=True):
     matchmaker.build_regression_bigraph()
     matchmaker.get_chimeric_ions()
-    matchmaker.fit_multiple_ion_regressions(fitting_to_void_penalty, 
-                                            merge_zeros,
-                                            normalize_X,
-                                            verbose)
+    matchmaker.fit_multiple_ion_regressions(
+        fitting_to_void_penalty, 
+        merge_zeros,
+        normalize_X,
+        verbose)
     return matchmaker

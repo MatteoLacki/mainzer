@@ -26,7 +26,7 @@ class Matchmaker(object):
     def get_neighbourhood_intensities(self,
                                       neighbourhood_thr=1.1):
         edges = self.centroids_intervals.interval_query(
-            self.ions.envelope_min_mz + neighbourhood_thr,
+            self.ions.envelope_min_mz - neighbourhood_thr,
             self.ions.envelope_max_mz + neighbourhood_thr
         )
         # different neighbourhoods might include intensity from the same centroids.
@@ -35,18 +35,24 @@ class Matchmaker(object):
 
     def assign_isotopologues_to_centroids(self, 
                                           min_neighbourhood_intensity=0,
-                                          verbose=False):
-        promissing_ions = self.ions[self.ions.neighbourhood_intensity > 0][self.ION]
-        promissing_ions.drop_duplicates(inplace=True)
+                                          verbose=False,
+                                          quick=True):
+        ions_promissing = self.ions[self.ions.neighbourhood_intensity > 0][self.ION]
+        ions_promissing.drop_duplicates(inplace=True)
 
+        # if quick:
+        #     self.isotopic_calculator
+        #     pass
+        # else:
         # using pandas it is faster to provide larger chunks of data to C++.
         # In C++ one could efficiently implement this code totally differently: asking for presence of isotopologues one after another.
         def iter_local_isotopologues2centroids(intensities, centroids):
-            iter_promissing_ions = promissing_ions.itertuples(index=False)
+            iter_ions_promissing = ions_promissing.itertuples(index=False)
             if verbose:
-                iter_promissing_ions = tqdm.tqdm(iter_promissing_ions,
-                                                 total=len(promissing_ions))
-            for formula, charge in iter_promissing_ions:
+                print("Assigning isotopologues to centroids.")
+                iter_ions_promissing = tqdm.tqdm(iter_ions_promissing,
+                                                 total=len(ions_promissing))
+            for formula, charge in iter_ions_promissing:
                 mz, probs = self.isotopic_calculator.spectrum(formula, charge)
                 edges = self.centroids_intervals.point_query(mz)
                 if len(edges.query):
@@ -63,6 +69,7 @@ class Matchmaker(object):
             pd.concat(iter_local_isotopologues2centroids(self.centroids.integrated_intensity.values, 
                                                          self.centroids.index.values),
                       ignore_index=True)
+
         isotopologues2centroids['mzprob'] = \
             isotopologues2centroids.mz * isotopologues2centroids.prob
         
@@ -254,6 +261,7 @@ class Matchmaker(object):
     @staticmethod
     def from_existing_centroids(existing_matchmaker, new_ions):
         """This is introduced to save time on unnecessary initialization."""
+        #TODO: stop recalculating centroid intervals.
         return IonsCentroids(new_ions,
                              existing_matchmaker.centroids,
                              existing_matchmaker.isotopic_calculator)

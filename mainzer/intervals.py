@@ -23,9 +23,9 @@ class IntervalQuery(object):
     def __init__(self, left, right):
         self.left  = np.array(left,  dtype=float)
         self.right = np.array(right, dtype=float)
+        idx = np.arange(len(left), dtype=np.int64)
         # ids can support indices, but this overcomplicates queries that can be simply integer based.
-        self.ids = np.arange(len(left), dtype=np.int64)
-        self.fncls = FNCLS(self.left, self.right, ids=self.ids)
+        self.fncls = FNCLS(self.left, self.right, idx)
 
     def interval_query(self, left, right):
         """
@@ -37,9 +37,9 @@ class IntervalQuery(object):
         """
         left = np.array(left, dtype=float)
         right = np.array(right, dtype=float)
-        query_idxs, db_idxs = self.fncls.all_overlaps_both(left, right, self.ids)
-        return Indices(query_idxs.astype(np.int64),
-                       db_idxs.astype(np.int64))
+        idx = np.arange(len(left), dtype=np.int64)
+        query_idxs, db_idxs = self.fncls.all_overlaps_both(left, right, idx)
+        return Indices(query_idxs.astype(np.int64), db_idxs.astype(np.int64))
 
     def interval_query_tuples(self, query_intervals):
         """

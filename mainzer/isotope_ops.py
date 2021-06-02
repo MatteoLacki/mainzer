@@ -25,14 +25,17 @@ class IsotopicCalculator(object):
             envelope = envelope.binned(self.bin_size)
         return envelope
 
+    def masses_probs(self, formula):
+        envelope = self(formula)
+        masses = envelope.np_masses()
+        probs = envelope.np_probs()
+        return masses, probs
+
     def spectrum(self, formula, charge=1):
         envelope = self(formula)
         masses = envelope.np_masses()
         probs = envelope.np_probs()
-        if charge > 1:
-            return (masses / charge + self.PROTON_MASS, probs)
-        else:
-            return masses, probs
+        return (masses / charge + self.PROTON_MASS, probs)
 
     def masses(self, formula):
         return self(formula).np_masses()
@@ -75,4 +78,24 @@ class IsotopicCalculator(object):
         mz, prob = self.spectrum(formula, charge)
         return pd.DataFrame({"formula":formula, "charge":charge, "mz":mz, "prob":prob})
 
+    def big_frame(self, ions, return_arrays=False):
+        theory_peaks_cnts = np.array([len(self[formula]) for formula, _ in ions])
+        theory_peaks_cnt = theory_peaks_cnts.sum()
+        mzs = np.zeros(theory_peaks_cnt, float)
+        probs = np.zeros(theory_peaks_cnt, float)
+        i_prev = 0
+        for formula, charge in ions:
+            iso = self[formula]
+            i = i_prev + len(iso)
+            mzs[i_prev:i] = iso.np_masses() / charge + self.PROTON_MASS
+            probs[i_prev:i] = iso.np_probs()
+            i_prev = i
+        if return_arrays:
+            return mzs, probs
+        else:
+            res = pd.DataFrame({"formula":np.repeat(ions.get_level_values("formula"), theory_peaks_cnts),
+                                "charge": np.repeat(ions.get_level_values("charge"), theory_peaks_cnts),
+                                "isospec_mz":mzs,
+                                "isospec_prob":probs})
+            return res
     
