@@ -1,14 +1,23 @@
 from datetime import datetime
-import json
 import pandas as pd
 import pathlib
 
 # from .baseline import strip_baseline
 from .signal_ops import cluster_spectrum
 from .isotope_ops import IsotopicCalculator
-from .molecule_ops import mered_proteins, mered_lipids, molecules2df, crosslink, merge_free_lipids_and_promissing_proteins
-from .read import read_spectrum, read_base_lipids, read_base_proteins
-from .regression import single_precursor_regression, turn_single_precursor_regression_chimeric
+from .molecule_ops import \
+    mered_proteins, \
+    mered_lipids,\
+    molecules2df,\
+    crosslink,\
+    merge_free_lipids_and_promissing_proteins
+from .read import \
+    read_spectrum,\
+    read_base_lipids,\
+    read_base_proteins
+from .regression import \
+    single_precursor_regression,\
+    turn_single_precursor_regression_chimeric
 
 
 def lipido_IO(settings):
@@ -19,11 +28,11 @@ def lipido_IO(settings):
 
     base_lipids   = read_base_lipids(settings['path_base_lipids'])
     base_proteins = read_base_proteins(settings['path_base_proteins'])
+    print(settings['path_spectrum'])
     mz, intensity = read_spectrum(settings['path_spectrum'])
     
     output_folder = pathlib.Path(settings['output_folder'])
-    output_folder.mkdir(parents=True, exist_ok=True)
-    (output_folder/analysis_time).mkdir(parents=True, exist_ok=True)
+    final_folder = output_folder/analysis_time
     
     verbose = settings.settings["verbose"]
 
@@ -34,24 +43,35 @@ def lipido_IO(settings):
         print()
         print("It's business time!")
 
-    proteins, free_lipid_clusters, centroids_df = \
+    proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters,centroids_df = \
         run_lipido(mz=mz,
                    intensity=intensity,
                    base_proteins=base_proteins,
                    base_lipids=base_lipids,
                    **settings.settings)
 
-    final_folder = output_folder/analysis_time
+    
 
     if verbose:
         print("Saving results.")
-    proteins.to_csv(final_folder/"proteins.csv")
-    free_lipid_clusters.to_csv(final_folder/"free_lipid_clusters.csv")
+
+    final_folder.mkdir(parents=True, exist_ok=True)
+
+    simple_proteins.to_csv(final_folder/"simple_protein_report.csv",
+                           index=False)
+    simple_free_lipid_clusters.to_csv(final_folder/"simple_free_lipid_clusters_report.csv",
+                                      index=False)
+    proteins.to_csv(final_folder/"extended_proteins_report.csv",
+                    index=False)
+    free_lipid_clusters.to_csv(final_folder/"extended_free_lipid_clusters_report.csv",
+                               index=False)
     centroids_df.to_csv(final_folder/"centroids.csv")
     settings.save_toml(final_folder/"config.mainzer")
 
     if verbose:
         print("Thank you for running Lipido!")
+
+    return proteins, free_lipid_clusters, centroids_df
 
 # defaults are set in settings.py! no need to repeat them here.
 def run_lipido(# spectrum preprocessing
@@ -117,21 +137,20 @@ def run_lipido(# spectrum preprocessing
         print("Checking for promissing proteins")
 
     regression_kwds = {
-        "centroids": filtered_centroids_df,
-        "isotopic_calculator": isotopic_calculator,
-        "neighbourhood_thr": neighbourhood_thr,
-        "min_neighbourhood_intensity": min_neighbourhood_intensity,
-        "underfitting_quantile": underfitting_quantile,
+        "centroids":                    filtered_centroids_df,
+        "isotopic_calculator":          isotopic_calculator,
+        "neighbourhood_thr":            neighbourhood_thr,
+        "min_neighbourhood_intensity":  min_neighbourhood_intensity,
+        "underfitting_quantile":        underfitting_quantile,
         "min_total_fitted_probability": min_total_fitted_probability,
-        "min_max_intensity_threshold": min_max_intensity_threshold,
-        "verbose": verbose
+        "min_max_intensity_threshold":  min_max_intensity_threshold,
+        "verbose":                      verbose
     }
 
     matchmaker = single_precursor_regression(
         protein_ions,
         min_charge_sequence_length=min_charge_sequence_length,
-        **regression_kwds
-    )
+        **regression_kwds )
     promissing_protein_ions_df = matchmaker.ions
     
     if verbose:
@@ -178,6 +197,7 @@ def run_lipido(# spectrum preprocessing
             verbose=verbose
         )
 
+
     final_ions = full_matchmaker.ions.copy()
     column_order = ["name", "contains_protein", "formula", "charge"]
     sort_cols = ["charge","chimeric_intensity_estimate"] if run_chimeric_regression else ["charge","maximal_intensity_estimate"]
@@ -187,10 +207,12 @@ def run_lipido(# spectrum preprocessing
 
     column_order += [ "maximal_intensity_estimate",
                       "neighbourhood_intensity",
+                      "chimeric_group",
                       "envelope_size",
                       "envelope_total_prob",
                       "envelope_min_mz",
                       "envelope_max_mz",
+                      "envelope_top_prob_mz",
                       "envelope_proximity_intensity",
                       "envelope_matched_to_signal",
                       "envelope_unmatched_prob",
@@ -200,7 +222,20 @@ def run_lipido(# spectrum preprocessing
                       "single_precursor_total_error"]
 
     final_ions = final_ions[column_order]
-    
+
+    simple_ions_cols = ["name",
+                        "charge",
+                        "envelope_top_prob_mz",
+                        "chimeric_intensity_estimate" if run_chimeric_regression else "maximal_intensity_estimate"]
+    if run_chimeric_regression:
+        simple_ions_cols.append("chimeric_group")
+
+    simple_ions = final_ions[simple_ions_cols]
+    simple_ions = simple_ions.rename(columns={"envelope_top_prob_mz":"top_probable_mz"})
+
+    simple_proteins = simple_ions[final_ions.contains_protein]
+    simple_free_lipid_clusters = simple_ions[~final_ions.contains_protein]
+
     # make it easier to distinguish proteins..
     proteins = final_ions[final_ions.contains_protein].copy().drop(columns="contains_protein")
     free_lipid_clusters = final_ions[~final_ions.contains_protein].copy().drop(columns="contains_protein")
@@ -213,6 +248,7 @@ def run_lipido(# spectrum preprocessing
         how='left'
     )
     centroids_df.fillna(0, inplace=True)
+
     #TODO maybe it would make sense to 
-    return proteins, free_lipid_clusters, centroids_df
+    return proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, centroids_df
 

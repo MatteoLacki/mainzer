@@ -89,6 +89,9 @@ class Settings:
     def __str__(self):
         return pprint.pformat(self.settings)
 
+    def __repr__(self):
+        return repr(self.settings)
+
     def print_summary(self):
         print(str(self))
 

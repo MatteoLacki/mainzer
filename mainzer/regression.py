@@ -61,6 +61,7 @@ def chimeric_regression(ions,
         normalize_X,
         verbose
     )
+    matchmaker.get_chimeric_groups()
     return matchmaker
 
 
@@ -76,4 +77,5 @@ def turn_single_precursor_regression_chimeric(matchmaker,
         merge_zeros,
         normalize_X,
         verbose)
+    matchmaker.get_chimeric_groups()
     return matchmaker

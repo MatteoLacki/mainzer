@@ -258,11 +258,11 @@ class Matchmaker(object):
                 0, 
                 self.centroids.chimeric_remainder)
 
-    @staticmethod
-    def from_existing_centroids(existing_matchmaker, new_ions):
-        """This is introduced to save time on unnecessary initialization."""
-        #TODO: stop recalculating centroid intervals.
-        return IonsCentroids(new_ions,
-                             existing_matchmaker.centroids,
-                             existing_matchmaker.isotopic_calculator)
-
+    def get_chimeric_groups(self):
+        chimeric_groups = pd.concat(self.G.iter_chimeric_groups(), ignore_index=True)
+        assert len(chimeric_groups) == len(self.ions)
+        self.ions = pd.merge(
+            self.ions,
+            chimeric_groups,
+            on=self.ION
+        )

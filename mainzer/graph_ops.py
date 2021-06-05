@@ -73,3 +73,9 @@ class RegressionGraph(nx.Graph):
     def unmatched_probability(self):
         return nx.get_node_attributes(self, "prob_out")
 
+    def iter_chimeric_groups(self):
+        for idx, ci in enumerate(self.iter_convoluted_ions()):
+            formulas, charges = zip(*ci)    
+            yield pd.DataFrame({"formula": formulas,
+                                "charge": charges,
+                                "chimeric_group": idx})

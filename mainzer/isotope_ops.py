@@ -51,11 +51,13 @@ class IsotopicCalculator(object):
             envelope = self(formula)
             masses = envelope.np_masses()
             probs = envelope.np_probs()
+            top_prob_idx = np.argmax(envelope.np_probs())
             yield {"formula": formula,
                    "envelope_size": len(envelope),
                    "envelope_total_prob": probs.sum(),
                    "min_mass": masses.min(),
-                   "max_mass": masses.max()}
+                   "max_mass": masses.max(),
+                   "top_prob_mass": masses[top_prob_idx]}
 
     def summary_df(self, formulas):
         return pd.DataFrame(self.iter_envelope_summaries(formulas))
@@ -68,7 +70,8 @@ class IsotopicCalculator(object):
         ions_df = ions_df.merge(res)
         ions_df["envelope_min_mz"] = ions_df.min_mass / ions_df.charge + self.PROTON_MASS
         ions_df["envelope_max_mz"] = ions_df.max_mass / ions_df.charge + self.PROTON_MASS
-        ions_df.drop(['min_mass','max_mass'], axis=1, inplace=True)
+        ions_df["envelope_top_prob_mz"] = ions_df.top_prob_mass / ions_df.charge + self.PROTON_MASS
+        ions_df.drop(["min_mass","max_mass","top_prob_mass"], axis=1, inplace=True)
         return ions_df
 
     def sizes(self):

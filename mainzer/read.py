@@ -52,21 +52,24 @@ def read_molecules_for_lipido(path):
 
 
 def parse_oligomeric_state(state, sequence_sep="-"):
-    res = set([])
-    try:
-        for term in state.replace(" ","").split(","):
-            if sequence_sep in term:
-                start, end = term.split(sequence_sep)
-                res.update(range(int(start), int(end)+1))
-            else:
-                res.add(int(term))
-    except ValueError as ve:
-        print(repr(ve))
-        print("Allowed are expressions with integers and 'integer:another_integer'.")
-        raise ValueError
-    res = list(res)
-    res.sort()
-    return res
+    if isinstance(state, int):
+        return [state]
+    else:
+        res = set([])
+        try:
+            for term in state.replace(" ","").split(","):
+                if sequence_sep in term:
+                    start, end = term.split(sequence_sep)
+                    res.update(range(int(start), int(end)+1))
+                else:
+                    res.add(int(term))
+        except ValueError as ve:
+            print(repr(ve))
+            print("Allowed are expressions with integers and 'integer:another_integer'.")
+            raise ValueError
+        res = list(res)
+        res.sort()
+        return res
 
 # path = "/home/matteo/Projects/och_Kallol/mainzer/test_data/base_proteins.csv"
 def read_base_proteins(path):
