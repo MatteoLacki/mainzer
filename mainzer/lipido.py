@@ -1,9 +1,10 @@
 from datetime import datetime
+from math import log10, ceil
 import pandas as pd
 import pathlib
 
 # from .baseline import strip_baseline
-from .signal_ops import cluster_spectrum
+from .data_frame_ops import round_df
 from .isotope_ops import IsotopicCalculator
 from .molecule_ops import \
     mered_proteins, \
@@ -18,6 +19,7 @@ from .read import \
 from .regression import \
     single_precursor_regression,\
     turn_single_precursor_regression_chimeric
+from .signal_ops import cluster_spectrum
 
 
 def lipido_IO(settings):
@@ -103,8 +105,11 @@ def run_lipido(# spectrum preprocessing
                underfitting_quantile,
                min_max_intensity_threshold,
                # multiple molecule regression
-               run_chimeric_regression,
+               chimeric_regression_fits_cnt,
                fitting_to_void_penalty,
+               min_chimeric_intensity_threshold,
+               # outputs look
+               round_outputs,
                # verbosity might be removed in favor of a logger
                verbose=False,
                **kwds):
@@ -147,11 +152,11 @@ def run_lipido(# spectrum preprocessing
         "verbose":                      verbose
     }
 
-    matchmaker = single_precursor_regression(
+    protein_ions_matchmaker = single_precursor_regression(
         protein_ions,
         min_charge_sequence_length=min_charge_sequence_length,
         **regression_kwds )
-    promissing_protein_ions_df = matchmaker.ions
+    promissing_protein_ions_df = protein_ions_matchmaker.ions
     
     if verbose:
         print("Getting lipid mers")
@@ -186,6 +191,8 @@ def run_lipido(# spectrum preprocessing
                                                   min_charge_sequence_length=1,
                                                   **regression_kwds)
 
+    run_chimeric_regression = chimeric_regression_fits_cnt > 0
+
     if run_chimeric_regression:
         if verbose:
             print("Performing chimeric regression.")
@@ -193,12 +200,33 @@ def run_lipido(# spectrum preprocessing
             full_matchmaker,
             fitting_to_void_penalty, 
             merge_zeros=True,
-            normalize_X=False,
+            normalize_X=False,#TODO: what about this??? Should it or not?
+            chimeric_regression_fits_cnt=chimeric_regression_fits_cnt,
+            min_chimeric_intensity_threshold=min_chimeric_intensity_threshold,
             verbose=verbose
         )
 
-
     final_ions = full_matchmaker.ions.copy()
+
+    if round_outputs:
+        mz_round = ceil(-log10(isotopic_bin_size))
+        final_ions = round_df(
+            final_ions,
+            {"envelope_total_prob":          3,
+             "envelope_min_mz":              mz_round,
+             "envelope_max_mz":              mz_round,
+             "envelope_top_prob_mz":         mz_round,
+             "envelope_matched_to_signal":   3,
+             "envelope_unmatched_prob":      3},
+             ["neighbourhood_intensity",
+              "maximal_intensity_estimate",
+              "single_precursor_fit_error",
+              "envelope_proximity_intensity",
+              "single_precursor_unmatched_estimated_intensity",
+              "single_precursor_total_error",
+              "chimeric_intensity_estimate"]
+        )
+
     column_order = ["name", "contains_protein", "formula", "charge"]
     sort_cols = ["charge","chimeric_intensity_estimate"] if run_chimeric_regression else ["charge","maximal_intensity_estimate"]
     final_ions = final_ions.sort_values(sort_cols, ascending=[True, False])    
@@ -249,6 +277,18 @@ def run_lipido(# spectrum preprocessing
     )
     centroids_df.fillna(0, inplace=True)
 
-    #TODO maybe it would make sense to 
+    if round_outputs:
+        centroids_df = round_df(
+            centroids_df,
+            {"mz_apex":     mz_round,
+             "left_mz":     mz_round,
+             "right_mz":    mz_round},
+            ["highest_intensity",
+             "integrated_intensity",
+             "chimeric_intensity_in_centroid",
+             "chimeric_remainder"]
+        )
+    centroids_df.drop(columns=["left_idx", "right_idx"], inplace=True)
+    
     return proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, centroids_df
 

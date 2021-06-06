@@ -32,7 +32,7 @@ class NNLS(LinearModel):
 
 
 class DeconvolvedUnderfit(LinearModel):
-    def fit(self, X, Y, lam=1.0):
+    def fit(self, X, Y, lam=0.5):
         X_nonzero = X.loc[X.index >= 0]
         Y_nonzero = Y.loc[Y.index >= 0]
         N, D = X_nonzero.shape

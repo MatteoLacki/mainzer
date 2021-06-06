@@ -29,8 +29,7 @@ setup(  name='mainzer',
                           'matplotlib',
                           'aa2atom',
                           'toml'],
-        scripts = [
-            'bin/lipido.py',
-            'bin/lipido_batch.py',
-        ]
+        scripts = ['bin/lipido.py',
+                   'bin/lipido_batch.py',
+                   'bin/plot_centroids_and_fits.py']
 )

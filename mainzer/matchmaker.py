@@ -258,6 +258,22 @@ class Matchmaker(object):
                 0, 
                 self.centroids.chimeric_remainder)
 
+    def filter_out_ions_with_low_chimeric_estimates(self, min_chimeric_intensity_threshold):
+        self.ions = self.ions[self.ions.chimeric_intensity_estimate >= min_chimeric_intensity_threshold]
+
+    def reset_state_to_before_chimeric_regression(self):
+        """This needs to be run to repeat regression [with lower number of control variables]."""
+        self.ions.drop(columns=["chimeric_intensity_estimate"],
+                       inplace=True)
+        self.centroids.drop(columns=["chimeric_remainder",
+                                     "chimeric_intensity_in_centroid"], 
+                            inplace=True)
+        del self.models
+        del self.chimeric_intensity_estimates
+        del self.promissing_ions2centroids
+        del self.promissing_ions_assignments_summary
+        del self.G
+
     def get_chimeric_groups(self):
         chimeric_groups = pd.concat(self.G.iter_chimeric_groups(), ignore_index=True)
         assert len(chimeric_groups) == len(self.ions)
@@ -266,3 +282,4 @@ class Matchmaker(object):
             chimeric_groups,
             on=self.ION
         )
+

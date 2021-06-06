@@ -8,7 +8,7 @@ pd.options.display.max_columns = None
 import numpy as np
 from pathlib import Path
 
-
+from mainzer.data_frame_ops import round_df
 from mainzer.molecule_ops import iter_mered_molecules, crosslink, molecules2df, iter_mers, iter_mers2, iter_mered_molecules2, mered_ions,  mered_lipids, mered_proteins, merge_free_lipids_and_promissing_proteins
 from mainzer.formulas import formula2counter, counter2formula, aa2formula
 from mainzer.read import read_spectrum, read_base_lipids, read_base_proteins
@@ -36,10 +36,14 @@ settings = Settings.FromTOML(data_folder/"config.mainzer")
 for key,val in settings.settings.items():
     exec(key + '=val')
 # plot_spectrum(mz, intensity)
-
 base_lipids = read_base_lipids(data_folder/"base_lipids.csv")
 base_proteins = read_base_proteins(data_folder/"base_proteins.csv")
 
+proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, centroids_df = \
+        run_lipido(mz=mz,
+                   intensity=intensity,
+                   base_proteins=base_proteins,
+                   base_lipids=base_lipids,
+                   **settings.settings)
 
-
-output_folder = Path("test_data/2021_06_04")
+plot_fit(centroids_df)
