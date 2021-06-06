@@ -28,7 +28,7 @@ settings_list = (
 ('chimeric_regression_fits_cnt',    int,    2,                  'Number of times to run chimeric regression.'),
 ('fitting_to_void_penalty',         float,  1.0,                'Penalty for fitting with theory where there is no signal [0.0<x, only used when deconvolve=true]'),
 ('min_chimeric_intensity_threshold',float,  100,                'In case of multiple chimeric fits, the minimal intensity of chimeric regression estimate that qualifies an ion for next iteration of the chimeric regression fitting procedure.'),
-('round_outputs',                   bool,   True,               'Should the outputs be rounded?'),
+('round_outputs',                   bool,   True,               'Round the intensities to integer values and round m/z to their binning values?'),
 ('verbose',                         bool,   True,               'Verbose?'),
 )
 

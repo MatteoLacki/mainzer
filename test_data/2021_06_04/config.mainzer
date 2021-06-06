@@ -61,7 +61,7 @@ min_total_fitted_probability = 0.8
 # Single molecule underfit quantile [0<x]
 underfitting_quantile = 0.00
 # Number of times to run chimeric regression.
-chimeric_regression_fits_cnt = 2
+chimeric_regression_fits_cnt = 3
 # In case of multiple chimeric fits, the minimal intensity of chimeric regression estimate that qualifies an ion for next iteration of the chimeric regression fitting procedure.
 min_chimeric_intensity_threshold = 300
 # Penalty for fitting with theory where there is no signal [0<x, only used when deconvolve=true]. Alternative interpretation: ratio between fitted and unfitted probability that results in setting intensities of fit for a given ion to zero.
