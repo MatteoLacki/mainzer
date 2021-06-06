@@ -32,7 +32,7 @@ def turn_single_precursor_regression_chimeric(matchmaker,
                                               fitting_to_void_penalty=1.0, 
                                               merge_zeros=True,
                                               normalize_X=False,
-                                              chimeric_regression_fits_cnt=2,
+                                              chimeric_regression_fits_cnt=3,
                                               min_chimeric_intensity_threshold=100,
                                               verbose=True):
     if chimeric_regression_fits_cnt >= 2:
@@ -70,7 +70,7 @@ def chimeric_regression(ions,
                         fitting_to_void_penalty=1.0,
                         merge_zeros=True,
                         normalize_X=False,
-                        chimeric_regression_fits_cnt=2,
+                        chimeric_regression_fits_cnt=3,
                         min_chimeric_intensity_threshold=100,
                         verbose=False):
     """Full metal chimeric regression."""
