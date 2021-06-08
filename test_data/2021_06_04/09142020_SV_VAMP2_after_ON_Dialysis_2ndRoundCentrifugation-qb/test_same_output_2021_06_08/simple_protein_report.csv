@@ -1,0 +1,58 @@
+name,charge,top_probable_mz,chimeric_intensity_estimate,chimeric_group
+mysterium_1,2,6389.4,10690,38
+mysterium_1 Cholesterol_1,2,6583.1,3068,39
+mysterium_1 RhodaminePE_1,3,4688.5,10554,10
+mysterium_1 Cholesterol_3 Galactsylceramide_2,3,5113.3,9346,21
+mysterium_1 DOPC_1 DOPS_1,3,4784.6,8370,8
+mysterium_1 DOPE_1 Ceramide_1,3,4696.6,4765,10
+mysterium_1 DOPC_1 RhodaminePE_1,3,4950.7,4197,12
+mysterium_1 16:0SM_1 POPI_1 Nycodenz_1,3,5047.3,3459,15
+mysterium_1 DOPC_1 16:0SM_1 POPI_1 Galactsylceramide_1,3,5268.7,2929,27
+mysterium_1 DOPC_1 DOPS_1 POPI_1,3,5063.1,2721,17
+mysterium_1 DOPS_1 POPI_1,3,4802.3,2661,8
+mysterium_1 DOPC_2 RhodaminePE_1,3,5211.5,2219,19
+mysterium_1 RhodaminePE_5,3,6401.1,2202,37
+mysterium_1 16:0SM_1 POPI_1 Cholesterol_1 Galactsylceramide_2,3,5369.1,2166,29
+mysterium_1 Cholesterol_4,3,4775.7,1917,13
+mysterium_1 DOPE_1 Galactsylceramide_1 Ceramide_2,3,5118.7,1879,21
+mysterium_1 16:0SM_1 Ceramide_1 Nycodenz_1,3,4956.9,1775,12
+mysterium_1 Cholesterol_2 Nycodenz_1,3,4791.5,1456,8
+mysterium_1 DOPE_1 16:0SM_2 Cholesterol_1,3,5105.6,1281,21
+mysterium_1 DOPE_3 16:0SM_1 RhodaminePE_1,4,4250.2,16876,6
+mysterium_1 DOPS_1 Ceramide_1 RhodaminePE_1 Nycodenz_2,4,4265.6,8875,6
+mysterium_1 DOPE_1 Ceramide_1 RhodaminePE_1 Nycodenz_2,4,4254.6,4275,6
+mysterium_1 Galactsylceramide_1 RhodaminePE_3 Nycodenz_1,4,4539.1,3172,5
+mysterium_1 16:0SM_1 POPI_1 Galactsylceramide_1 RhodaminePE_1 Nycodenz_1,4,4281.8,3171,6
+mysterium_1 16:0SM_1 POPI_1 Nycodenz_1,4,3785.7,2842,16
+mysterium_1 DOPC_1 POPI_1,4,3601.0,2763,11
+mysterium_1 DOPC_1 DOPS_1 POPI_1,4,3797.6,2543,18
+mysterium_1 16:0SM_1 Ceramide_1 RhodaminePE_1 Nycodenz_2,4,4244.3,2408,24
+mysterium_1 DOPS_1 RhodaminePE_1,4,3713.5,2113,14
+mysterium_1 DOPS_1 RhodaminePE_4,4,4677.0,1939,36
+mysterium_1 DOPC_1 DOPS_3,4,3982.8,1699,25
+mysterium_1 16:0SM_1 POPI_1 RhodaminePE_3,4,4543.2,1563,5
+mysterium_1 DOPC_1 DOPE_3 RhodaminePE_1,4,4270.9,855,6
+mysterium_1,5,2556.4,40697,0
+mysterium_1 DOPS_1 16:0SM_2 Galactsylceramide_1 RhodaminePE_1,5,3392.1,7421,23
+mysterium_1 DOPC_1 DOPE_1 Ceramide_1 RhodaminePE_1 Nycodenz_1,5,3396.8,5554,23
+mysterium_1 DOPC_2 RhodaminePE_2,5,3384.7,4886,30
+mysterium_1 DOPE_1 Ceramide_1 RhodaminePE_1 Nycodenz_2,5,3403.9,4744,23
+mysterium_1 16:0SM_1 POPI_1 Cholesterol_2 Nycodenz_1,5,3183.3,4436,20
+mysterium_1 DOPC_1 Galactsylceramide_1 RhodaminePE_1 Nycodenz_2,5,3439.1,3843,26
+mysterium_1 DOPE_1 Ceramide_1 RhodaminePE_3,5,3589.2,3772,35
+mysterium_1 DOPS_1 DOPE_1 Nycodenz_2,5,3191.3,3538,2
+mysterium_1 DOPE_2 Cholesterol_1 Galactsylceramide_2,5,3211.5,3226,2
+mysterium_1 DOPC_2 Galactsylceramide_1 RhodaminePE_2,5,3524.8,2954,4
+mysterium_1 DOPC_1 DOPE_1 POPI_1 Nycodenz_2,5,3358.2,2557,22
+mysterium_1 DOPC_1 16:0SM_2 RhodaminePE_2,5,3508.8,2446,34
+mysterium_1 DOPE_3 16:0SM_1 RhodaminePE_1,5,3400.3,1819,23
+mysterium_1,6,2130.5,13142,7
+mysterium_1 DOPE_2 Cholesterol_1 Galactsylceramide_1,6,2559.6,8320,0
+mysterium_1 POPI_1 Galactsylceramide_1 RhodaminePE_2 Nycodenz_1,6,2951.9,7387,31
+mysterium_1 Ceramide_3 Nycodenz_1,6,2550.4,6069,0
+mysterium_1 16:0SM_4 RhodaminePE_1,6,2813.3,3023,28
+mysterium_1 DOPE_1 16:0SM_2 Cholesterol_1,6,2553.3,2838,0
+mysterium_1 DOPC_1 POPI_1 Cholesterol_1 RhodaminePE_2,6,2893.6,2630,32
+mysterium_1 16:0SM_1 Galactsylceramide_2 RhodaminePE_2,6,2908.8,2074,33
+mysterium_1 DOPC_1 POPI_1 Cholesterol_1 RhodaminePE_1 Nycodenz_1,6,2816.5,1715,28
+mysterium_1 16:0SM_1 Cholesterol_1 Galactsylceramide_1 Nycodenz_1,6,2565.5,1390,0

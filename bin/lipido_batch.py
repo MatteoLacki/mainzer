@@ -21,5 +21,5 @@ os.chdir(ap.path_to_config_file.parent)
 for path_spectrum in glob.glob(settings["path_spectrum"]):
     path_spectrum = pathlib.Path(path_spectrum)
     settings["path_spectrum"] = str(path_spectrum)
-    settings['output_folder'] = str(pathlib.Path(path_spectrum.stem) / "output")
+    settings['output_folder'] = str(pathlib.Path(path_spectrum.stem))
     lipido_IO(settings)

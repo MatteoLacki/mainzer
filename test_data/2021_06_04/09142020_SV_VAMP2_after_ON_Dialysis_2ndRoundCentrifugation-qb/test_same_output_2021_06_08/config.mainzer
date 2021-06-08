@@ -1,7 +1,7 @@
 # Every line starting with a # is a comment
 
 # Path to the spectrum (mzML, mzXML, csv). May contain an asterisk to match multiple files.
-path_spectrum = '*.mzML'
+path_spectrum = '09142020_SV_VAMP2_after_ON_Dialysis_2ndRoundCentrifugation-qb.mzML'
 
 # Path to the file containing "lipid seeds".
 path_base_lipids = 'base_lipids.csv'
@@ -63,11 +63,17 @@ underfitting_quantile = 0.0
 # Minimal maximal intensity estimate that qualifies an ion for further analysis [0<=x]
 min_max_intensity_threshold = 300
 
-# Should we run chimeric regression? [true/false]
-run_chimeric_regression = true
+# Number of times to run chimeric regression.
+chimeric_regression_fits_cnt = 3
 
 # Penalty for fitting with theory where there is no signal [0.0<x, only used when deconvolve=true]
 fitting_to_void_penalty = 1.0
+
+# In case of multiple chimeric fits, the minimal intensity of chimeric regression estimate that qualifies an ion for next iteration of the chimeric regression fitting procedure.
+min_chimeric_intensity_threshold = 300
+
+# Round the intensities to integer values and round m/z to their binning values? [true/false]
+round_outputs = true
 
 # Verbose? [true/false]
 verbose = true

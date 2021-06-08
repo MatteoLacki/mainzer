@@ -8,5 +8,7 @@ upload_pypi:
 	rm -rf dist || True
 	python setup.py sdist
 	twine upload dist/*
+tests:
+	pytest
 py:
 	python -m IPython

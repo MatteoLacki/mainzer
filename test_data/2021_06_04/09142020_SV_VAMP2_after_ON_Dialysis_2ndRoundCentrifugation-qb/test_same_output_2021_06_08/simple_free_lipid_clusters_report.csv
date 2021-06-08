@@ -1,0 +1,22 @@
+name,charge,top_probable_mz,chimeric_intensity_estimate,chimeric_group
+DOPC_3 POPI_1,1,3196.3,180059,2
+DOPS_1 DOPE_2 Galactsylceramide_1 RhodaminePE_1,1,4260.9,151313,6
+DOPS_3 POPI_1,1,3201.2,40166,2
+DOPS_1 DOPE_1 16:0SM_1 Cholesterol_1 Ceramide_1,1,3188.6,28179,2
+Ceramide_2 RhodaminePE_2 Nycodenz_1,1,4522.3,26167,5
+DOPE_3 RhodaminePE_1,1,3517.3,22598,4
+DOPE_1 16:0SM_2 POPI_1 RhodaminePE_1,1,4271.9,22224,6
+DOPC_2 Cholesterol_1 RhodaminePE_2,1,4528.9,8010,5
+DOPE_1 Nycodenz_3,1,3208.2,5240,2
+DOPS_1 Cholesterol_1 Ceramide_1 Nycodenz_1,1,2562.3,5034,0
+DOPC_2 DOPS_1 POPI_1,1,3198.3,4223,2
+DOPS_2 Cholesterol_1 RhodaminePE_2,1,4532.8,3536,5
+POPI_1 RhodaminePE_3,1,4691.6,3051,10
+POPI_1 Ceramide_1 RhodaminePE_2 Nycodenz_1,1,4794.3,2320,8
+Galactsylceramide_1 Ceramide_1 RhodaminePE_3,2,2560.6,6428,0
+DOPE_1 POPI_1 Galactsylceramide_2 RhodaminePE_1,2,2133.5,5346,7
+DOPC_1 16:0SM_1 POPI_1 Ceramide_1 Nycodenz_1,2,1857.6,3267,3
+DOPS_1 POPI_3 RhodaminePE_1,2,2292.5,2827,9
+DOPS_1 16:0SM_2 Cholesterol_1 Nycodenz_1,2,1701.5,2627,1
+DOPE_2 16:0SM_2 Nycodenz_1,2,1858.6,2120,3
+DOPC_1 16:0SM_3 Nycodenz_1,2,1859.1,876,3

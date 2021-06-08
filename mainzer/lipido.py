@@ -7,7 +7,7 @@ import pathlib
 from .data_frame_ops import round_df
 from .isotope_ops import IsotopicCalculator
 from .molecule_ops import \
-    mered_proteins, \
+    mered_proteins,\
     mered_lipids,\
     molecules2df,\
     crosslink,\
@@ -45,7 +45,7 @@ def lipido_IO(settings):
         print()
         print("It's business time!")
 
-    proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters,centroids_df = \
+    proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, centroids_df = \
         run_lipido(mz=mz,
                    intensity=intensity,
                    base_proteins=base_proteins,
