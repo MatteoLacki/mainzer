@@ -12,3 +12,8 @@ tests:
 	pytest
 py:
 	python -m IPython
+winclean:
+	rm -rf build dist *.spec */*.spec
+wininst: winclean
+	conda activate py37
+	pyinstaller bin/lipido_batch.py
