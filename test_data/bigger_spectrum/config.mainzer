@@ -1,0 +1,72 @@
+# Every line starting with a # is a comment
+
+
+#------------------------------------ BASIC SETTINGS:
+# Path to the spectrum (mzML, mzXML, csv). May contain an asterisk to match multiple files.
+path_spectrum = '*.mzML'
+# Path to the file containing "lipid seeds".
+path_base_lipids = 'base_lipids.csv'
+# Path to the file containing "proteins seeds".
+path_base_proteins = 'base_proteins.csv'
+
+# Threshold for intensities: clusters with maximal intensity below this value will not be considered [0<=x]
+min_highest_intensity = 300
+
+# Minimal m/z of the centroids [0<=x]
+min_mz = 1600
+# Maximal m/z of the centroids [0<=x]
+max_mz = 7000
+
+# Minimal and maximal charge states for ions that contain a protein.
+min_protein_cluster_charge = 2
+max_protein_cluster_charge = 10
+
+# Minimal and maximal number of lipid adducts in considered ions.
+min_lipid_mers = 1
+max_lipid_mers = 5
+
+# Minimal and maximal charge on a free lipid cluster
+min_free_lipid_cluster_charge = 1
+max_free_lipid_cluster_charge = 10
+
+# Neighbourhood buffer size in Thomsons [0<x]
+neighbourhood_thr = 1.1
+# Minimal intensity in the neighbourhood of each ion to consider it [0<=x].
+min_neighbourhood_intensity = 300
+
+# Minimal number of consecutive charge states of a protein to consider it.
+min_charge_sequence_length = 3
+
+# Minimal maximal intensity estimate that qualifies an ion for further analysis [0<=x]
+min_max_intensity_threshold = 300
+
+# Should the progress of programme be printed to the terminal? [true/false]
+verbose = true
+
+
+
+#------------------------------------ ADVANCED SETTINGS
+
+# Controls over considered ions:
+# Consider only heteromers of proteins, without studying their monomers.
+only_heteromers = false
+
+# IsoSpec probability coverage [0<x<1] (only values close to 1, like 0.99, make sense though)
+isotopic_coverage = 0.99
+# IsoSpec bin size in Thomsons, [0<x]
+isotopic_bin_size = 0.1
+# The minimal overall probability of isotopes matched to centroids [0<=x<=1]
+min_total_fitted_probability = 0.8
+
+# Single molecule underfit quantile [0<x]
+underfitting_quantile = 0.00
+# Number of times to run chimeric regression.
+chimeric_regression_fits_cnt = 3
+# In case of multiple chimeric fits, the minimal intensity of chimeric regression estimate that qualifies an ion for next iteration of the chimeric regression fitting procedure.
+min_chimeric_intensity_threshold = 300
+# Penalty for fitting with theory where there is no signal [0<x, only used when deconvolve=true]. Alternative interpretation: ratio between fitted and unfitted probability that results in setting intensities of fit for a given ion to zero.
+fitting_to_void_penalty = 1.0
+
+# Round all intensity estimates to integers and all other floats to 3 decimal place?
+# And m/z to the level dictated by centroiding.
+round_outputs = true

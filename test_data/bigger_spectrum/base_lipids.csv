@@ -1,0 +1,11 @@
+group,name,formula
+lipid,DOPC,C44H84NO8P
+lipid,DOPS,C42H78NO10P
+lipid,DOPE,C41H78NO8P
+lipid,16:0SM,C39H79N2O6P
+lipid,POPI,C43H81O13P
+lipid,Cholesterol,C27H46O
+lipid,Galactsylceramide,C40H77NO8
+lipid,Ceramide,C36H71NO3
+lipid,RhodaminePE,C68H106N3O14PS2
+lipid,Nycodenz,C19H26I3N3O9
