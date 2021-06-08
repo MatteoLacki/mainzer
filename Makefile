@@ -10,3 +10,7 @@ upload_pypi:
 	twine upload dist/*
 py:
 	python -m IPython
+winclean:
+	rm -rf build dist *.spec */*.spec
+wininst: winclean
+	pyinstaller bin/lipido_batch.py
