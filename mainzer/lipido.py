@@ -22,7 +22,7 @@ from .regression import \
 from .signal_ops import cluster_spectrum
 
 
-def lipido_IO(settings):
+def lipido_IO(settings, output_folder):
     """ 
     Read in necessary data and saves the outputs.
     """
@@ -33,7 +33,7 @@ def lipido_IO(settings):
     print(settings['path_spectrum'])
     mz, intensity = read_spectrum(settings['path_spectrum'])
     
-    output_folder = pathlib.Path(settings['output_folder'])
+    output_folder = pathlib.Path(output_folder)
     final_folder = output_folder/analysis_time
     
     verbose = settings.settings["verbose"]
@@ -96,6 +96,7 @@ def run_lipido(# spectrum preprocessing
                only_heteromers, # discard homomers
                # ion filters
                min_neighbourhood_intensity,
+               max_expected_ppm_distance,
                min_charge_sequence_length,
                min_total_fitted_probability,
                # single molecule regression
@@ -121,9 +122,11 @@ def run_lipido(# spectrum preprocessing
     centroids_df = cluster_spectrum(mz, intensity)
     
     # this is simple: filerting on `max_intensity` in `centroids_df`
-    filtered_centroids_df = centroids_df[(centroids_df.highest_intensity >= min_highest_intensity).values &\
-                                         (centroids_df.left_mz >= min_mz).values &\
-                                         (centroids_df.right_mz <= max_mz).values].copy()
+    filtered_centroids_df = centroids_df[
+        (centroids_df.highest_intensity >= min_highest_intensity).values &\
+        (centroids_df.left_mz           >= min_mz).values &\
+        (centroids_df.right_mz          <= max_mz).values
+    ].copy()
 
     if verbose:
         print("Getting proteins mers")#TODO: change for logger
@@ -146,6 +149,7 @@ def run_lipido(# spectrum preprocessing
         "isotopic_calculator":          isotopic_calculator,
         "neighbourhood_thr":            neighbourhood_thr,
         "min_neighbourhood_intensity":  min_neighbourhood_intensity,
+        "max_expected_ppm_distance":    max_expected_ppm_distance,
         "underfitting_quantile":        underfitting_quantile,
         "min_total_fitted_probability": min_total_fitted_probability,
         "min_max_intensity_threshold":  min_max_intensity_threshold,

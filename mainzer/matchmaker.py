@@ -21,10 +21,12 @@ class Matchmaker(object):
         self.ION = ["formula","charge"]
 
     def get_isotopic_summaries(self):
+        """These include summaries of one ion's envelope: its size, total probability, minimal and maximal m/z, top-probable m/z."""
         self.ions = self.isotopic_calculator.ions_summary(self.ions)
 
     def get_neighbourhood_intensities(self,
                                       neighbourhood_thr=1.1):
+        """Get the signal intensity above the minimal m/z of the envelope minus neighbourhood_thr and velow the maximal m/z of the envelope plus neighbourhood_thr."""
         edges = self.centroids_intervals.interval_query(
             self.ions.envelope_min_mz - neighbourhood_thr,
             self.ions.envelope_max_mz + neighbourhood_thr
@@ -37,54 +39,94 @@ class Matchmaker(object):
                                           min_neighbourhood_intensity=0,
                                           verbose=False,
                                           quick=True):
+
+        # using pandas it is faster to provide larger chunks of data to C++.
+        # In C++ one could efficiently implement this code totally differently: asking for presence of isotopologues one after another.
         ions_promissing = self.ions[self.ions.neighbourhood_intensity > 0][self.ION]
         ions_promissing.drop_duplicates(inplace=True)
 
-        # if quick:
-        #     self.isotopic_calculator
-        #     pass
-        # else:
-        # using pandas it is faster to provide larger chunks of data to C++.
-        # In C++ one could efficiently implement this code totally differently: asking for presence of isotopologues one after another.
-        def iter_local_isotopologues2centroids(intensities, centroids):
+        def iter_local_isotopologues2centroids():
             iter_ions_promissing = ions_promissing.itertuples(index=False)
             if verbose:
                 print("Assigning isotopologues to centroids.")
                 iter_ions_promissing = tqdm.tqdm(iter_ions_promissing,
                                                  total=len(ions_promissing))
-            for formula, charge in iter_ions_promissing:
-                mz, probs = self.isotopic_calculator.spectrum(formula, charge)
+            for ion_formula, ion_charge in iter_ions_promissing:
+                mz, probs = self.isotopic_calculator.spectrum(ion_formula, ion_charge)
                 edges = self.centroids_intervals.point_query(mz)
                 if len(edges.query):
                     yield pd.DataFrame({
-                        "formula": formula,
-                        "charge": charge,
-                        "centroid": centroids[edges.interval_db],
-                        "integrated_intensity": intensities[edges.interval_db],
-                        "mz": mz[edges.query],
-                        "prob": probs[edges.query]
+                        "formula":  ion_formula,
+                        "charge":   ion_charge,
+                        "centroid": self.centroids.index.values[edges.interval_db],
+                        "mz":       mz[edges.query],
+                        "prob":     probs[edges.query]
                     })
-        #TODO: alternative to make graph here immediately
-        isotopologues2centroids = \
-            pd.concat(iter_local_isotopologues2centroids(self.centroids.integrated_intensity.values, 
-                                                         self.centroids.index.values),
-                      ignore_index=True)
+
+        # alternative to make graph here immediately
+        isotopologues2centroids = pd.concat(
+            iter_local_isotopologues2centroids(),
+            ignore_index=True
+        )
+        
+        isotopologues2centroids['mz_apex'] = self.centroids.mz_apex.loc[isotopologues2centroids.centroid].values
+
+        isotopologues2centroids['absolute_distance'] = (isotopologues2centroids.mz - isotopologues2centroids.mz_apex).abs().values
+
+        isotopologues2centroids['distance_ppm'] = 1e6 * isotopologues2centroids.absolute_distance / isotopologues2centroids.mz_apex.abs()
 
         isotopologues2centroids['mzprob'] = \
             isotopologues2centroids.mz * isotopologues2centroids.prob
+    
+        self.ion2centroids = isotopologues2centroids.groupby(self.ION+["centroid", "mz_apex"]).agg(
+            {   "mz":                       [min, max],
+                "mzprob":                   [sum, len],
+                "prob":                     sum,
+            })
+
+        self.ion2centroids.columns = [
+            "min_mz", 
+            "max_mz",
+            "tot_mzprob",
+            "isotopologues_cnt",
+            "isotopologue_prob"
+        ]
+
+        self.ion2centroids['weighted_mz_theory'] = self.ion2centroids.tot_mzprob / self.ion2centroids.isotopologue_prob
         
-        # here we add integrated_intensity to the key because it is unique to each centroid.
-        self.ion2centroids = isotopologues2centroids.groupby(self.ION+["centroid","integrated_intensity"]).agg(
-            {"mz":[min, max],
-             "mzprob":[sum, len],
-             "prob":sum}
-        )
-        self.ion2centroids.columns = ["min_mz", "max_mz", "tot_mzprob","isotopologues_cnt", "isotopologue_prob"]
-        self.ion2centroids['weighted_mz'] = self.ion2centroids.tot_mzprob / self.ion2centroids.isotopologue_prob
+        #TODO: GET weighted_mz in CENTROIDS
+        # here need self.centroids.weighted_mz
+        # self.ion2centroids['weighted_mz_signal'] = self.centroids.weighted_mz.loc[self.ion2centroids.centroid].values
+
+        # self.ion2centroids['ppm_distance_weighted_means'] = 1e6 * (self.ion2centroids.weighted_mz_theory - self.ion2centroids.weighted_mz_signal).abs() / self.ion2centroids.weighted_mz_theory.abs()
+
         self.ion2centroids.drop(columns="tot_mzprob", inplace=True)
+
         self.ion2centroids = self.ion2centroids.reset_index()
+
         self.ion2centroids.isotopologues_cnt = self.ion2centroids.isotopologues_cnt.astype(np.int64)
+
+        self.ion2centroids['integrated_intensity'] = self.centroids.integrated_intensity.loc[self.ion2centroids.centroid].values
+
         self.ion2centroids["intensity_over_prob"] = self.ion2centroids.integrated_intensity / self.ion2centroids.isotopologue_prob
+
+        indices_of_highest_theoretical_peaks = isotopologues2centroids.groupby(self.ION+["centroid"]).prob.idxmax().values
+
+        self.ion2centroids["ppm_distance_top_prob_mz_cluster_apex"] = \
+            isotopologues2centroids.distance_ppm.iloc[indices_of_highest_theoretical_peaks].values
+
+        self.ion2centroids["weighted_ppm_distance_top_prob_mz_cluster_apex"] = \
+            self.ion2centroids.ppm_distance_top_prob_mz_cluster_apex *\
+            self.ion2centroids.isotopologue_prob
+
+    def filter_by_expected_ppm_distance_between_apex_and_top_prob_theoretical_assignment(
+            self, 
+            max_expected_ppm_distance=15
+        ):
+        expected_ppm_dist = self.ion2centroids.groupby(self.ION).weighted_ppm_distance_top_prob_mz_cluster_apex.sum()
+        expected_ppm_dist[expected_ppm_dist < max_expected_ppm_distance]
+        #TODO: this has to be passed forward. 
+        
         
     def estimate_max_ion_intensity(self,
                                    underfitting_quantile=0):

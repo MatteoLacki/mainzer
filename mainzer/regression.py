@@ -6,6 +6,7 @@ def single_precursor_regression(ions,
                                 isotopic_calculator,
                                 neighbourhood_thr=1.1,
                                 min_neighbourhood_intensity=100,
+                                max_expected_ppm_distance=15,
                                 underfitting_quantile=0.0,
                                 min_total_fitted_probability=.8,
                                 min_max_intensity_threshold=100,
@@ -17,6 +18,9 @@ def single_precursor_regression(ions,
     matchmaker.get_isotopic_summaries()
     matchmaker.get_neighbourhood_intensities(neighbourhood_thr)
     matchmaker.assign_isotopologues_to_centroids(min_neighbourhood_intensity, verbose)
+    matchmaker.filter_by_expected_ppm_distance_between_apex_and_top_prob_theoretical_assignment(
+        max_expected_ppm_distance
+    )
     matchmaker.estimate_max_ion_intensity(underfitting_quantile)
     matchmaker.summarize_ion_assignments()
     matchmaker.add_ion_assignments_summary_to_ions()
@@ -63,6 +67,8 @@ def chimeric_regression(ions,
                         isotopic_calculator,
                         neighbourhood_thr=1.1,
                         min_neighbourhood_intensity=100,
+                        max_expected_ppm_distance_to_cluster_apex=15,
+                        max_ppm_distance_top_prob_mz_cluster_apex=15,
                         underfitting_quantile=0.0,
                         min_total_fitted_probability=.8,
                         min_max_intensity_threshold=100,
@@ -79,6 +85,8 @@ def chimeric_regression(ions,
                                              isotopic_calculator,
                                              neighbourhood_thr,
                                              min_neighbourhood_intensity,
+                                             max_ppm_distance,
+                                             ppm_distance_type,
                                              underfitting_quantile,
                                              min_total_fitted_probability,
                                              min_max_intensity_threshold,

@@ -15,7 +15,8 @@ from mainzer.settings import Settings
 from mainzer.lipido import run_lipido
 from mainzer.plot import plot_spectrum, plot_fit
 
-data_folder = Path("test_data/2021_06_04")
+data_folder = Path("/home/matteo/Projects/och_Kallol/mainzer/test_data/small_spectrum")
+data_folder.exists()
 spectrum_path = next(data_folder.glob("*.mzML"))
 mz, intensity = read_spectrum(str(spectrum_path))
 # plot_spectrum(mz, intensity)
@@ -23,16 +24,14 @@ mz, intensity = read_spectrum(str(spectrum_path))
 base_lipids = read_base_lipids(data_folder/"base_lipids.csv")
 base_proteins = read_base_proteins(data_folder/"base_proteins.csv")
 settings = Settings.FromTOML(data_folder/"config.mainzer")
-
 verbose = settings.settings["verbose"]
 
-
-proteins, free_lipid_clusters, centroids_df = \
-    run_lipido(mz=mz,
-               intensity=intensity,
-               base_proteins=base_proteins,
-               base_lipids=base_lipids,
-               **settings.settings)
+proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, centroids_df = run_lipido(
+    mz=mz,
+   intensity=intensity,
+   base_proteins=base_proteins,
+   base_lipids=base_lipids,
+   **settings.settings)
 
 analysis_time = datetime.now().strftime('lipido__date_%Y_%m_%d_time_%H_%M_%S')
 output_folder = data_folder/spectrum_path.stem

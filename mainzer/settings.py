@@ -23,6 +23,7 @@ settings_list = (
 ('isotopic_coverage',               float,  0.99,               'IsoSpec probability coverage [0<=x<1] (only values close to 1, like 0.99, make sense though)'),
 ('isotopic_bin_size',               float,  0.1,                'IsoSpec bin size in Thomsons, [0<x]'),
 ('neighbourhood_thr',               float,  1.1,                'Neighbourhood buffer size in Thomsons [0<=x]'),
+('max_expected_ppm_distance',       float,  15,                 'Maximal expected ppm distance between theoretical and experimental peaks between theoretical peaks and apexes of assigned centroids.'),
 ('underfitting_quantile',           float,  0.00,               'Single molecule underfit quantile [0<=x]'),
 ('min_max_intensity_threshold',     float,  100,                'Minimal maximal intensity estimate that qualifies an ion for further analysis [0<=x]'),
 ('chimeric_regression_fits_cnt',    int,    2,                  'Number of times to run chimeric regression.'),
