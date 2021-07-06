@@ -18,7 +18,7 @@ min_mz = 1600
 max_mz = 7000
 
 # Minimal and maximal charge states for ions that contain a protein.
-min_protein_cluster_charge = 2
+min_protein_cluster_charge = 1
 max_protein_cluster_charge = 10
 
 # Minimal and maximal number of lipid adducts in considered ions.
@@ -43,6 +43,8 @@ min_max_intensity_threshold = 300
 # Should the progress of programme be printed to the terminal? [true/false]
 verbose = true
 
+# How far away (on average w.r.t. different centroids) should the top probable peak be from centroids' apices? [0<=x]
+max_expected_ppm_distance = 400
 
 
 #------------------------------------ ADVANCED SETTINGS

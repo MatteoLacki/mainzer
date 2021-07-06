@@ -11,24 +11,22 @@ def single_precursor_regression(ions,
                                 min_total_fitted_probability=.8,
                                 min_max_intensity_threshold=100,
                                 min_charge_sequence_length=1,
-                                verbose=False):
+                                verbose=False,
+                                **kwargs):
     matchmaker = Matchmaker(ions,
                             centroids,
                             isotopic_calculator)
     matchmaker.get_isotopic_summaries()
     matchmaker.get_neighbourhood_intensities(neighbourhood_thr)
     matchmaker.assign_isotopologues_to_centroids(min_neighbourhood_intensity, verbose)
-    matchmaker.filter_by_expected_ppm_distance_between_apex_and_top_prob_theoretical_assignment(
-        max_expected_ppm_distance
-    )
+    matchmaker.mark_ions_far_from_apexes_of_centroids(max_expected_ppm_distance)
     matchmaker.estimate_max_ion_intensity(underfitting_quantile)
     matchmaker.summarize_ion_assignments()
-    matchmaker.add_ion_assignments_summary_to_ions()
     matchmaker.get_theoretical_intensities_where_no_signal_was_matched()
     matchmaker.get_total_intensity_errors_for_maximal_intensity_estimates()
-    matchmaker.filter_ions_that_do_not_fit_centroids(min_total_fitted_probability)
-    matchmaker.filter_ions_with_low_maximal_intensity(min_max_intensity_threshold)
-    matchmaker.charge_ions_that_are_not_in_chargestate_sequence(min_charge_sequence_length)
+    matchmaker.mark_ions_with_probability_mass_outside_centroids(min_total_fitted_probability)
+    matchmaker.mark_ions_with_low_maximal_intensity(min_max_intensity_threshold)
+    matchmaker.mark_ions_not_in_charge_cluster(min_charge_sequence_length)
     return matchmaker
 
 
@@ -38,7 +36,8 @@ def turn_single_precursor_regression_chimeric(matchmaker,
                                               normalize_X=False,
                                               chimeric_regression_fits_cnt=3,
                                               min_chimeric_intensity_threshold=100,
-                                              verbose=True):
+                                              verbose=True,
+                                              **kwargs):
     if chimeric_regression_fits_cnt >= 2:
         print(f"Running chimeric_regression for the first time.")
     else:
@@ -78,7 +77,8 @@ def chimeric_regression(ions,
                         normalize_X=False,
                         chimeric_regression_fits_cnt=3,
                         min_chimeric_intensity_threshold=100,
-                        verbose=False):
+                        verbose=False,
+                        **kwargs):
     """Full metal chimeric regression."""
     matchmaker = single_precursor_regression(ions,
                                              centroids,

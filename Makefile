@@ -11,7 +11,7 @@ upload_pypi:
 tests:
 	pytest
 py:
-	python -m IPython
+	/home/matteo/Projects/och_Kallol/ve_mainzer/bin/python3.8 -m IPython
 winclean:
 	rm -rf build dist *.spec */*.spec
 wininst: winclean

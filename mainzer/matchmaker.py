@@ -1,3 +1,4 @@
+import functools
 import numpy as np
 import pandas as pd
 import tqdm
@@ -5,7 +6,16 @@ import tqdm
 from .intervals import IntervalQuery
 from .graph_ops import RegressionGraph
 from .models import fit_DeconvolvedUnderfit
-from .molecule_filters import charge_sequence_filter
+from .charge_ops import cluster_charges
+
+
+def mark_rows(table, ions_to_mark, names, column_name, marking, alternative=None):
+    table = table.set_index(names)
+    table.loc[ions_to_mark, column_name] = marking
+    if alternative is not None:
+        table[column_name].fillna(alternative, inplace=True)
+    return table.reset_index()
+
 
 class Matchmaker(object):
     def __init__(self,
@@ -14,15 +24,18 @@ class Matchmaker(object):
                  isotopic_calculator):
         assert all(colname in ions.columns for colname in ("name","formula","charge")), "'ions_df' should be a pandas.DataFrame with columns 'name', 'formula', and 'charge'."
         self.ions = ions
+        # self.ions["reason_for_filtering_out"] = np.nan
         self.centroids = centroids
         self.centroids_intervals = IntervalQuery(self.centroids.left_mz,
                                                  self.centroids.right_mz)
         self.isotopic_calculator = isotopic_calculator
         self.ION = ["formula","charge"]
 
+
     def get_isotopic_summaries(self):
         """These include summaries of one ion's envelope: its size, total probability, minimal and maximal m/z, top-probable m/z."""
         self.ions = self.isotopic_calculator.ions_summary(self.ions)
+
 
     def get_neighbourhood_intensities(self,
                                       neighbourhood_thr=1.1):
@@ -35,10 +48,10 @@ class Matchmaker(object):
         self.ions["neighbourhood_intensity"] = self.centroids.integrated_intensity.iloc[edges.interval_db].groupby(edges.query).sum()
         self.ions.neighbourhood_intensity.fillna(0, inplace=True)# NaN -> 0
 
+
     def assign_isotopologues_to_centroids(self, 
                                           min_neighbourhood_intensity=0,
-                                          verbose=False,
-                                          quick=True):
+                                          verbose=False):
 
         # using pandas it is faster to provide larger chunks of data to C++.
         # In C++ one could efficiently implement this code totally differently: asking for presence of isotopologues one after another.
@@ -64,87 +77,155 @@ class Matchmaker(object):
                     })
 
         # alternative to make graph here immediately
-        isotopologues2centroids = pd.concat(
+        self.isotopologues2centroids = pd.concat(
             iter_local_isotopologues2centroids(),
             ignore_index=True
         )
+
+        self.isotopologues2centroids['mz_apex'] = self.centroids.mz_apex.loc[self.isotopologues2centroids.centroid].values
+
+        self.isotopologues2centroids['signed_absolute_distance_apex_isotopologue'] = \
+            self.isotopologues2centroids.mz - self.isotopologues2centroids.mz_apex
+
+        self.isotopologues2centroids['ppm_distance_apex_isotopologue'] = \
+            1e6 * \
+            self.isotopologues2centroids.signed_absolute_distance_apex_isotopologue / \
+            self.isotopologues2centroids.mz_apex.abs()
+
+        self.isotopologues2centroids['mzprob'] = \
+            self.isotopologues2centroids.mz * self.isotopologues2centroids.prob
         
-        isotopologues2centroids['mz_apex'] = self.centroids.mz_apex.loc[isotopologues2centroids.centroid].values
-
-        isotopologues2centroids['absolute_distance'] = (isotopologues2centroids.mz - isotopologues2centroids.mz_apex).abs().values
-
-        isotopologues2centroids['distance_ppm'] = 1e6 * isotopologues2centroids.absolute_distance / isotopologues2centroids.mz_apex.abs()
-
-        isotopologues2centroids['mzprob'] = \
-            isotopologues2centroids.mz * isotopologues2centroids.prob
-    
-        self.ion2centroids = isotopologues2centroids.groupby(self.ION+["centroid", "mz_apex"]).agg(
-            {   "mz":                       [min, max],
-                "mzprob":                   [sum, len],
-                "prob":                     sum,
+        self.ions2centroids = self.isotopologues2centroids.groupby(self.ION + ["centroid", "mz_apex"]).agg(
+            {   "mz":     [min, max],
+                "mzprob": [sum, len],
+                "prob":    sum
             })
-
-        self.ion2centroids.columns = [
+        self.ions2centroids.columns = [
             "min_mz", 
             "max_mz",
             "tot_mzprob",
             "isotopologues_cnt",
             "isotopologue_prob"
         ]
+        self.ions2centroids.isotopologues_cnt = self.ions2centroids.isotopologues_cnt.astype(np.int64)
 
-        self.ion2centroids['weighted_mz_theory'] = self.ion2centroids.tot_mzprob / self.ion2centroids.isotopologue_prob
-        
-        #TODO: GET weighted_mz in CENTROIDS
-        # here need self.centroids.weighted_mz
-        # self.ion2centroids['weighted_mz_signal'] = self.centroids.weighted_mz.loc[self.ion2centroids.centroid].values
+        self.ions2centroids.drop(columns="tot_mzprob", inplace=True)
 
-        # self.ion2centroids['ppm_distance_weighted_means'] = 1e6 * (self.ion2centroids.weighted_mz_theory - self.ion2centroids.weighted_mz_signal).abs() / self.ion2centroids.weighted_mz_theory.abs()
+        self.ions2centroids = self.ions2centroids.reset_index(["centroid","mz_apex"])
 
-        self.ion2centroids.drop(columns="tot_mzprob", inplace=True)
+        self.ions2centroids['integrated_intensity'] = self.centroids.integrated_intensity.loc[self.ions2centroids.centroid].values
 
-        self.ion2centroids = self.ion2centroids.reset_index()
+        self.ions2centroids["intensity_over_prob"] = self.ions2centroids.integrated_intensity / self.ions2centroids.isotopologue_prob
 
-        self.ion2centroids.isotopologues_cnt = self.ion2centroids.isotopologues_cnt.astype(np.int64)
+        indices_of_highest_theoretical_peaks = self.isotopologues2centroids.groupby(self.ION+["centroid"]).prob.idxmax().values
 
-        self.ion2centroids['integrated_intensity'] = self.centroids.integrated_intensity.loc[self.ion2centroids.centroid].values
+        self.ions2centroids["top_mz"] = \
+            self.isotopologues2centroids.mz.iloc[indices_of_highest_theoretical_peaks].values
 
-        self.ion2centroids["intensity_over_prob"] = self.ion2centroids.integrated_intensity / self.ion2centroids.isotopologue_prob
+        self.ions2centroids["top_prob"] = \
+            self.isotopologues2centroids.prob.iloc[indices_of_highest_theoretical_peaks].values
 
-        indices_of_highest_theoretical_peaks = isotopologues2centroids.groupby(self.ION+["centroid"]).prob.idxmax().values
+        self.ions2centroids.top_prob /= self.ions2centroids.groupby(self.ION).top_prob.sum()
 
-        self.ion2centroids["ppm_distance_top_prob_mz_cluster_apex"] = \
-            isotopologues2centroids.distance_ppm.iloc[indices_of_highest_theoretical_peaks].values
+        self.ions2centroids["ppm_distance_top_prob_mz_cluster_apex"] = \
+            self.isotopologues2centroids.ppm_distance_apex_isotopologue.iloc[indices_of_highest_theoretical_peaks].values
 
-        self.ion2centroids["weighted_ppm_distance_top_prob_mz_cluster_apex"] = \
-            self.ion2centroids.ppm_distance_top_prob_mz_cluster_apex *\
-            self.ion2centroids.isotopologue_prob
+        self.ions2centroids["weighted_ppm_distance_top_prob_mz_cluster_apex"] = \
+            self.ions2centroids.ppm_distance_top_prob_mz_cluster_apex *\
+            self.ions2centroids.top_prob
 
-    def filter_by_expected_ppm_distance_between_apex_and_top_prob_theoretical_assignment(
+        self.ions = mark_rows(
+            self.ions,
+            ions_to_mark=[ion for ion in zip(self.ions.formula, self.ions.charge) if ion not in self.ions2centroids.index],
+            names=self.ION,
+            column_name="reason_for_filtering_out",
+            marking="not_within_any_centroid",
+            alternative="none"
+        )
+        # I dunno which key I want to have, so I just don't have any and select one when necessary, and go back to no keys when I am finished.
+        self.ions2centroids = self.ions2centroids.reset_index()
+
+
+    def plot_ion_assignment(self, formula, charge, mz, intensity, mz_buffer=50, show=True):
+        """This function is used for debugging purposes."""
+        ION = self.isotopologues2centroids[(self.isotopologues2centroids.formula == formula) & (self.isotopologues2centroids.charge == charge) ]
+        if len(ION):            
+            from .plot import plot_spectrum
+            import matplotlib.patches as mpatches
+            import matplotlib.pyplot as plt
+            MZ = mz[ (ION.mz.min() - mz_buffer <= mz) & (ION.mz.max() + mz_buffer >= mz) ] 
+            I = intensity[ (ION.mz.min() - mz_buffer <= mz) & (ION.mz.max() + mz_buffer >= mz) ]
+            plot_spectrum(MZ, I, show=False)
+            CENTROIDS_AROUND = self.centroids[self.centroids.mz_apex.between(ION.mz.min() - mz_buffer, ION.mz.max() + mz_buffer)]
+            for centroid in CENTROIDS_AROUND.itertuples():
+                rect = mpatches.Rectangle((centroid.left_mz, 0),
+                                          centroid.right_mz - centroid.left_mz,
+                                          centroid.highest_intensity, 
+                                          fill=False,
+                                          color="purple",
+                                          linewidth=2)
+                plt.gca().add_patch(rect)
+            HIT_CENTROIDS = self.centroids.loc[ ION.centroid.unique() ]
+            for centroid in HIT_CENTROIDS.itertuples():
+                rect = mpatches.Rectangle((centroid.left_mz, 0),
+                                          centroid.right_mz - centroid.left_mz,
+                                          centroid.highest_intensity, 
+                                          fill=False,
+                                          color="black",
+                                          linewidth=3)
+                plt.gca().add_patch(rect)
+            ion_mzs, ion_probs = self.isotopic_calculator.spectrum(formula, charge)
+            plt.scatter(ion_mzs, ion_probs/ion_probs.max() * HIT_CENTROIDS.highest_intensity.max(), c='orange' )
+            if show:
+                plt.show()
+
+
+    def mark_ions_far_from_apexes_of_centroids(
             self, 
             max_expected_ppm_distance=15
         ):
-        expected_ppm_dist = self.ion2centroids.groupby(self.ION).weighted_ppm_distance_top_prob_mz_cluster_apex.sum()
-        expected_ppm_dist[expected_ppm_dist < max_expected_ppm_distance]
-        #TODO: this has to be passed forward. 
-        
-        
+        """This function only marks thing."""
+        expected_ppm_dist = self.ions2centroids.groupby(self.ION).weighted_ppm_distance_top_prob_mz_cluster_apex.sum()
+        ions_far_from_centroid_apexes = expected_ppm_dist[expected_ppm_dist.abs() > max_expected_ppm_distance]
+
+        mark_far_away_ions = functools.partial(
+            mark_rows, 
+            ions_to_mark=ions_far_from_centroid_apexes.index,
+            names=self.ION,
+            column_name="reason_for_filtering_out",
+            marking="far_from_centroid_apex")
+
+        self.ions2centroids = mark_far_away_ions(self.ions2centroids)
+        self.isotopologues2centroids = mark_far_away_ions(self.isotopologues2centroids)
+        self.ions = mark_far_away_ions(self.ions)
+        self.ions.set_index(self.ION, inplace=True)
+        self.ions["expected_ppm_dist"] = expected_ppm_dist
+        self.ions.expected_ppm_dist.fillna(-1, inplace=True)
+        self.ions.reset_index(inplace=True)
+
     def estimate_max_ion_intensity(self,
                                    underfitting_quantile=0):
         assert underfitting_quantile >= 0 and underfitting_quantile <= 1, "'underfitting_quantile' is a probability and so must be between 0 and 1."
-        self.maximal_intensity_estimate = self.ion2centroids.groupby(self.ION).intensity_over_prob.quantile(underfitting_quantile)
+        
+        # self.ions = self.ions.set_index(self.ION)
+        # self.ions['maximal_intensity_estimate'] = self.ions2centroids.groupby(self.ION).intensity_over_prob.quantile(underfitting_quantile)
+        # self.ions['maximal_intensity_estimate'].fillna(0, inplace=True)
+
+
+        self.maximal_intensity_estimate = self.ions2centroids.groupby(self.ION).intensity_over_prob.quantile(underfitting_quantile)
         self.maximal_intensity_estimate.name = "maximal_intensity_estimate"
-        self.ion2centroids = self.ion2centroids.merge(
+        self.ions2centroids = self.ions2centroids.merge(
             self.maximal_intensity_estimate,
             left_on=self.ION, 
             right_index=True,
             how="left"
         )
         # getting errors:
-        self.ion2centroids["single_precursor_fit_error"] = \
-            self.ion2centroids.maximal_intensity_estimate * \
-            self.ion2centroids.isotopologue_prob
+        self.ions2centroids["single_precursor_fit_error"] = \
+            self.ions2centroids.maximal_intensity_estimate * \
+            self.ions2centroids.isotopologue_prob
 
-        single_precursor_fit_error = self.ion2centroids.groupby(self.ION).single_precursor_fit_error.sum()
+        single_precursor_fit_error = self.ions2centroids.groupby(self.ION).single_precursor_fit_error.sum()
 
         self.maximal_intensity_estimate = pd.concat([
             self.maximal_intensity_estimate,
@@ -159,8 +240,9 @@ class Matchmaker(object):
         )
         self.ions.fillna(0, inplace=True)
 
+
     def summarize_ion_assignments(self):
-        self.ion_assignments_summary = self.ion2centroids.groupby(self.ION).agg(
+        self.ion_assignments_summary = self.ions2centroids.groupby(self.ION).agg(
             {"isotopologue_prob":"sum",
              "integrated_intensity":"sum", # Here sum is OK: we sum different centroids' intensities.
              "centroid":"nunique"}
@@ -187,7 +269,6 @@ class Matchmaker(object):
         # fix by setting to 0
         self.ion_assignments_summary.envelope_unmatched_prob = np.where(envelope_unmatched_prob < 0, 0, envelope_unmatched_prob)
 
-    def add_ion_assignments_summary_to_ions(self):
         self.ions = pd.merge(
             self.ions,
             self.ion_assignments_summary.drop("envelope_total_prob", axis=1),
@@ -197,38 +278,69 @@ class Matchmaker(object):
         self.ions.fillna(0, inplace=True)
         self.ions.explainable_centroids = self.ions.explainable_centroids.astype(int)
 
+
     def get_theoretical_intensities_where_no_signal_was_matched(self):
         # another way to measure error: the intensity of unmatched fragments
         self.ions["single_precursor_unmatched_estimated_intensity"] =\
             self.ions.maximal_intensity_estimate * \
             self.ions.envelope_unmatched_prob
 
+
     def get_total_intensity_errors_for_maximal_intensity_estimates(self):
         self.ions["single_precursor_total_error"] = \
             self.ions.single_precursor_fit_error + \
             self.ions.single_precursor_unmatched_estimated_intensity
 
-    def filter_ions_with_low_maximal_intensity(self, min_max_intensity_threshold):
-        self.ions = self.ions[self.ions.maximal_intensity_estimate >= min_max_intensity_threshold]
 
-    def filter_ions_that_do_not_fit_centroids(self, min_total_fitted_probability=.8):
-        self.ions = self.ions[self.ions.envelope_matched_to_signal >= min_total_fitted_probability]
+    def mark_ions_with_probability_mass_outside_centroids(self, min_total_fitted_probability=.8):
+        self.ions.reason_for_filtering_out = np.where(
+            (self.ions.reason_for_filtering_out == "none") & \
+            (self.ions.envelope_matched_to_signal < min_total_fitted_probability), 
+            "probability_mass_mostly_outside_centroids",
+            self.ions.reason_for_filtering_out
+        )
 
-    def charge_ions_that_are_not_in_chargestate_sequence(self, min_charge_sequence_length=1):
+
+    def mark_ions_with_low_maximal_intensity(self, min_max_intensity_threshold=0):
+        self.ions.reason_for_filtering_out = np.where(
+            (self.ions.reason_for_filtering_out == "none") & 
+            (self.ions.maximal_intensity_estimate < min_max_intensity_threshold), 
+            "low_maximal_intensity_estimate",
+            self.ions.reason_for_filtering_out
+        )
+
+
+    def mark_ions_not_in_charge_cluster(self, min_charge_sequence_length=1):
         if min_charge_sequence_length > 1:
-            self.ions = charge_sequence_filter(self.ions,
-                                               min_charge_sequence_length)
+            self.ions = self.ions.set_index(self.ION)
+            formulas_charges = self.ions[self.ions.reason_for_filtering_out == "none"].index.to_frame(False)
+            formulas_charges["charge_group"] = formulas_charges.groupby("formula").charge.transform(cluster_charges)
+            formulas_charges = formulas_charges.set_index(self.ION)
+            self.ions["charge_group"] = formulas_charges
+            self.ions.charge_group.fillna(0, inplace=True)
+            self.ions.charge_group = self.ions.charge_group.astype(int)
+            self.ions.reason_for_filtering_out = np.where(
+                (self.ions.reason_for_filtering_out == "none") & 
+                (self.ions.charge_group == 0), 
+                "not_in_charge_group",
+                self.ions.reason_for_filtering_out
+            )
+            self.ions.reset_index(inplace=True)
+
 
     def build_regression_bigraph(self):
-        self.promissing_ions2centroids = \
-            pd.merge(self.ion2centroids,
-                     self.ions[["name"]+self.ION],
-                     on=self.ION)
-
-        self.promissing_ions_assignments_summary = \
-            pd.merge(self.ion_assignments_summary,
-                     self.ions[["name"]+self.ION],
-                     on=self.ION)
+        good_ions = self.ions[self.ions.reason_for_filtering_out == 'none'][["name"]+self.ION]
+        self.promissing_ions2centroids = pd.merge(
+            self.ions2centroids,
+            good_ions,
+            on=self.ION
+        )
+        
+        promissing_ions_assignments_summary = pd.merge(
+            self.ion_assignments_summary,
+            good_ions,
+            on=self.ION
+        )
 
         self.G = RegressionGraph()
         for r in self.promissing_ions2centroids.itertuples():
@@ -236,12 +348,14 @@ class Matchmaker(object):
             self.G.add_edge(ion, r.centroid, prob=r.isotopologue_prob )
             self.G.nodes[r.centroid]["intensity"] = r.integrated_intensity
 
-        for r in self.promissing_ions_assignments_summary.itertuples():
+        for r in promissing_ions_assignments_summary.itertuples():
             ion = r.formula, r.charge
             self.G.nodes[ion]["prob_out"] = r.envelope_unmatched_prob
 
+
     def get_chimeric_ions(self):
         return list(self.G.iter_convoluted_ions())
+
 
     def fit_multiple_ion_regressions(self,
                                      fitting_to_void_penalty=1.0, 
@@ -300,8 +414,10 @@ class Matchmaker(object):
                 0, 
                 self.centroids.chimeric_remainder)
 
+
     def filter_out_ions_with_low_chimeric_estimates(self, min_chimeric_intensity_threshold):
         self.ions = self.ions[self.ions.chimeric_intensity_estimate >= min_chimeric_intensity_threshold]
+
 
     def reset_state_to_before_chimeric_regression(self):
         """This needs to be run to repeat regression [with lower number of control variables]."""
@@ -313,8 +429,8 @@ class Matchmaker(object):
         del self.models
         del self.chimeric_intensity_estimates
         del self.promissing_ions2centroids
-        del self.promissing_ions_assignments_summary
         del self.G
+
 
     def get_chimeric_groups(self):
         chimeric_groups = pd.concat(self.G.iter_chimeric_groups(), ignore_index=True)

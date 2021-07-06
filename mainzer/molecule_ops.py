@@ -36,14 +36,14 @@ def iter_mered_molecules(molecules, min_degree, max_degree):
         yield from iter_mers(molecules, degree)
 
 
-def iter_mers2(molecules, degree=2, cnt_sep="_", mer_sep=" "):
+def iter_mers2(molecules, degree=2, cnt_sep=" ", mer_sep=" + "):
     for comb in itertools.combinations_with_replacement(molecules.items(), degree):
         formula_cnt = collections.Counter()
         names_cnt = collections.Counter()
         for mol_name, mol_formula in comb:
             formula_cnt += formula2counter(mol_formula)
             names_cnt[mol_name] += 1
-        name = mer_sep.join(f"{name}{cnt_sep}{cnt}" for name, cnt in names_cnt.items())
+        name = mer_sep.join(f"{cnt}{cnt_sep}{name}" if cnt>1 else name for name, cnt in names_cnt.items())
         formula = counter2formula(formula_cnt)
         yield name, formula
 
@@ -111,7 +111,7 @@ def merge_free_lipids_and_promissing_proteins(free_lipids,
     res = pd.merge(res.assign(key=0),
                              free_lipids.assign(key=0),
                              how="outer", on="key").drop("key", axis=1)
-    res.name = res.prot_name + " " +  res.name
+    res.name = res.prot_name + " + " +  res.name
     res.formula = [add_formulas(f_prot, f_lip) for f_prot, f_lip in zip(res.prot_formula, res.formula)]
     res = res.drop(['prot_formula', 'prot_name'], axis=1)
     res.rename(columns={"prot_charge":"charge"}, inplace=True)

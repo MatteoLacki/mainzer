@@ -50,7 +50,8 @@ def lipido_IO(settings, output_folder):
                    intensity=intensity,
                    base_proteins=base_proteins,
                    base_lipids=base_lipids,
-                   **settings.settings)
+                   params=settings.settings,
+                   verbose=verbose)
 
     
 
@@ -75,46 +76,13 @@ def lipido_IO(settings, output_folder):
 
     return proteins, free_lipid_clusters, centroids_df
 
-# defaults are set in settings.py! no need to repeat them here.
-def run_lipido(# spectrum preprocessing
-               mz,
+
+def run_lipido(mz,
                intensity,
-               min_highest_intensity,
-               min_mz,
-               max_mz,
-               # proteins
                base_proteins,
-               min_protein_cluster_charge,
-               max_protein_cluster_charge,
-               # lipids
                base_lipids,
-               min_lipid_mers,
-               max_lipid_mers,
-               min_free_lipid_cluster_charge,
-               max_free_lipid_cluster_charge,
-               # crosslinking
-               only_heteromers, # discard homomers
-               # ion filters
-               min_neighbourhood_intensity,
-               max_expected_ppm_distance,
-               min_charge_sequence_length,
-               min_total_fitted_probability,
-               # single molecule regression
-               isotopic_coverage,
-               isotopic_bin_size,
-               neighbourhood_thr,
-               underfitting_quantile,
-               min_max_intensity_threshold,
-               # multiple molecule regression
-               chimeric_regression_fits_cnt,
-               fitting_to_void_penalty,
-               min_chimeric_intensity_threshold,
-               # outputs look
-               round_outputs,
-               # verbosity might be removed in favor of a logger
-               verbose=False,
-               **kwds):
-    
+               params,
+               verbose=False):
     if verbose:
         print("Centroiding")#TODO: change for logger
 
@@ -123,56 +91,52 @@ def run_lipido(# spectrum preprocessing
     
     # this is simple: filerting on `max_intensity` in `centroids_df`
     filtered_centroids_df = centroids_df[
-        (centroids_df.highest_intensity >= min_highest_intensity).values &\
-        (centroids_df.left_mz           >= min_mz).values &\
-        (centroids_df.right_mz          <= max_mz).values
+        (centroids_df.highest_intensity >= params["min_highest_intensity"]).values &\
+        (centroids_df.left_mz           >= params["min_mz"]).values &\
+        (centroids_df.right_mz          <= params["max_mz"]).values
     ].copy()
 
     if verbose:
         print("Getting proteins mers")#TODO: change for logger
     # initially we search for proteins only
 
-    protein_mers = mered_proteins(base_proteins, only_heteromers)
+    protein_mers = mered_proteins(base_proteins, params["only_heteromers"])
     protein_ions = molecules2df(protein_mers,
-                                range(min_protein_cluster_charge,
-                                      max_protein_cluster_charge+1))
+                                range(params["min_protein_cluster_charge"],
+                                      params["max_protein_cluster_charge"]+1))
 
     if verbose:
         print("Setting up IsoSpec (soon to defeat NeutronStar, if it already does not).")
-    isotopic_calculator = IsotopicCalculator(isotopic_coverage, isotopic_bin_size)
+    isotopic_calculator = IsotopicCalculator(params["isotopic_coverage"], 
+                                             params["isotopic_bin_size"])
 
     if verbose:
         print("Checking for promissing proteins")
 
-    regression_kwds = {
-        "centroids":                    filtered_centroids_df,
-        "isotopic_calculator":          isotopic_calculator,
-        "neighbourhood_thr":            neighbourhood_thr,
-        "min_neighbourhood_intensity":  min_neighbourhood_intensity,
-        "max_expected_ppm_distance":    max_expected_ppm_distance,
-        "underfitting_quantile":        underfitting_quantile,
-        "min_total_fitted_probability": min_total_fitted_probability,
-        "min_max_intensity_threshold":  min_max_intensity_threshold,
-        "verbose":                      verbose
-    }
+    regression_kwds = params.copy()
+    regression_kwds["centroids"] = filtered_centroids_df
+    regression_kwds["isotopic_calculator"] = isotopic_calculator
+    regression_kwds["verbose"] = verbose
+    del regression_kwds["min_charge_sequence_length"]
 
-    protein_ions_matchmaker = single_precursor_regression(
-        protein_ions,
-        min_charge_sequence_length=min_charge_sequence_length,
-        **regression_kwds )
-    promissing_protein_ions_df = protein_ions_matchmaker.ions
+    protein_ions_matchmaker = \
+        single_precursor_regression(protein_ions, 
+                                    min_charge_sequence_length=params["min_charge_sequence_length"],
+                                    **regression_kwds)
+    promissing_protein_ions_df = protein_ions_matchmaker.ions[protein_ions_matchmaker.ions.reason_for_filtering_out=="none"].copy()
     
     if verbose:
         print("Getting lipid mers")
     
     free_lipid_mers = dict(mered_lipids(base_lipids,
-                                        min_lipid_mers,
-                                        max_lipid_mers))
+                                        params["min_lipid_mers"],
+                                        params["max_lipid_mers"]))
     free_lipids_no_charge_df = molecules2df(free_lipid_mers)
-    free_lipids_with_charge_df = \
-        molecules2df(free_lipid_mers, 
-                     charges = range(min_free_lipid_cluster_charge,
-                                     max_free_lipid_cluster_charge))
+    free_lipids_with_charge_df = molecules2df(
+        free_lipid_mers, 
+        charges=range(params["min_free_lipid_cluster_charge"],
+                      params["max_free_lipid_cluster_charge"])
+    )
 
     if verbose:
         print("Getting promissing protein-lipid centroids.")
@@ -181,47 +145,50 @@ def run_lipido(# spectrum preprocessing
         merge_free_lipids_and_promissing_proteins(free_lipids_no_charge_df,
                                                   promissing_protein_ions_df)
     
-    protein_ions['contains_protein'] = True
+    promissing_proteins = promissing_protein_ions_df[["name","formula","charge"]].copy()
+    promissing_proteins['contains_protein'] = True
     promissing_protein_lipid_complexes['contains_protein'] = True
     free_lipids_with_charge_df['contains_protein'] = False
     
     # Promissing Ions = Promissing Proteins + Protein Lipid Clusters + Free Lipid Clusters
-    promissing_ions = pd.concat([protein_ions,
+    promissing_ions = pd.concat([promissing_proteins,
                                  promissing_protein_lipid_complexes,
                                  free_lipids_with_charge_df],
                                  ignore_index=True)
 
-    full_matchmaker = single_precursor_regression(promissing_ions,
-                                                  min_charge_sequence_length=1,
-                                                  **regression_kwds)
+    full_matchmaker = \
+        single_precursor_regression(promissing_ions,
+                                    min_charge_sequence_length=params["min_charge_sequence_length"],
+                                    **regression_kwds)
 
-    run_chimeric_regression = chimeric_regression_fits_cnt > 0
+    run_chimeric_regression = params["chimeric_regression_fits_cnt"] > 0
 
     if run_chimeric_regression:
         if verbose:
             print("Performing chimeric regression.")
         full_matchmaker = turn_single_precursor_regression_chimeric(
             full_matchmaker,
-            fitting_to_void_penalty, 
+            params["fitting_to_void_penalty"], 
             merge_zeros=True,
             normalize_X=False,#TODO: what about this??? Should it or not?
-            chimeric_regression_fits_cnt=chimeric_regression_fits_cnt,
-            min_chimeric_intensity_threshold=min_chimeric_intensity_threshold,
+            chimeric_regression_fits_cnt=params["chimeric_regression_fits_cnt"],
+            min_chimeric_intensity_threshold=params["min_chimeric_intensity_threshold"],
             verbose=verbose
         )
 
-    final_ions = full_matchmaker.ions.copy()
+    #TODO put all this into Matchmaker 
+    final_ions = full_matchmaker.ions[full_matchmaker.ions.reason_for_filtering_out == "none"].copy()
 
-    if round_outputs:
-        mz_round = ceil(-log10(isotopic_bin_size))
+    if params["rounding"] != -1:
+        mz_round = ceil(-log10(params["isotopic_bin_size"]))
         final_ions = round_df(
             final_ions,
-            {"envelope_total_prob":          3,
+            {"envelope_total_prob":          params["rounding"],
              "envelope_min_mz":              mz_round,
              "envelope_max_mz":              mz_round,
              "envelope_top_prob_mz":         mz_round,
-             "envelope_matched_to_signal":   3,
-             "envelope_unmatched_prob":      3},
+             "envelope_matched_to_signal":   params["rounding"],
+             "envelope_unmatched_prob":      params["rounding"]},
              ["neighbourhood_intensity",
               "maximal_intensity_estimate",
               "single_precursor_fit_error",
@@ -281,7 +248,7 @@ def run_lipido(# spectrum preprocessing
     )
     centroids_df.fillna(0, inplace=True)
 
-    if round_outputs:
+    if params["rounding"] != -1:
         centroids_df = round_df(
             centroids_df,
             {"mz_apex":     mz_round,

@@ -1,0 +1,6 @@
+
+
+[dash]
+UPLOAD_FOLDER_ROOT = "/home/matteo/Projects/masdiag/NMR/uploads"
+MAX_FILE_SIZE = 5000 #MB
+DEBUG = true
