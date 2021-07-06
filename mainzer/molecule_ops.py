@@ -111,6 +111,7 @@ def merge_free_lipids_and_promissing_proteins(free_lipids,
     res = pd.merge(res.assign(key=0),
                              free_lipids.assign(key=0),
                              how="outer", on="key").drop("key", axis=1)
+    
     res.name = res.prot_name + " + " +  res.name
     res.formula = [add_formulas(f_prot, f_lip) for f_prot, f_lip in zip(res.prot_formula, res.formula)]
     res = res.drop(['prot_formula', 'prot_name'], axis=1)

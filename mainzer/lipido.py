@@ -178,8 +178,17 @@ def run_lipido(mz,
     #TODO put all this into Matchmaker 
     final_ions = full_matchmaker.ions[full_matchmaker.ions.reason_for_filtering_out == "none"].copy()
 
+    # TODO: rething the settings... the column names should be there
     if params["rounding"] != -1:
         mz_round = ceil(-log10(params["isotopic_bin_size"]))
+        columns2int = ["neighbourhood_intensity",
+                       "maximal_intensity_estimate",
+                       "single_precursor_fit_error",
+                       "envelope_proximity_intensity",
+                       "single_precursor_unmatched_estimated_intensity",
+                       "single_precursor_total_error"]
+        if run_chimeric_regression:
+            columns2int.append("chimeric_intensity_estimate")
         final_ions = round_df(
             final_ions,
             {"envelope_total_prob":          params["rounding"],
@@ -188,13 +197,7 @@ def run_lipido(mz,
              "envelope_top_prob_mz":         mz_round,
              "envelope_matched_to_signal":   params["rounding"],
              "envelope_unmatched_prob":      params["rounding"]},
-             ["neighbourhood_intensity",
-              "maximal_intensity_estimate",
-              "single_precursor_fit_error",
-              "envelope_proximity_intensity",
-              "single_precursor_unmatched_estimated_intensity",
-              "single_precursor_total_error",
-              "chimeric_intensity_estimate"]
+            columns2int
         )
 
     column_order = ["name", "contains_protein", "formula", "charge"]
@@ -205,8 +208,11 @@ def run_lipido(mz,
 
     column_order += [ "maximal_intensity_estimate",
                       "neighbourhood_intensity",
-                      "chimeric_group",
-                      "envelope_size",
+                      "maximal_intensity_estimate",
+                      "neighbourhood_intensity"]
+    if run_chimeric_regression:
+        column_order.append("chimeric_group")
+    column_order += [ "envelope_size",
                       "envelope_total_prob",
                       "envelope_min_mz",
                       "envelope_max_mz",
@@ -238,27 +244,28 @@ def run_lipido(mz,
     proteins = final_ions[final_ions.contains_protein].copy().drop(columns="contains_protein")
     free_lipid_clusters = final_ions[~final_ions.contains_protein].copy().drop(columns="contains_protein")
     
-    centroids_df = pd.merge(
-        centroids_df,
-        full_matchmaker.centroids[["chimeric_intensity_in_centroid", "chimeric_remainder"]],
-        left_index=True,
-        right_index=True,
-        how='left'
-    )
-    centroids_df.fillna(0, inplace=True)
-
-    if params["rounding"] != -1:
-        centroids_df = round_df(
+    if run_chimeric_regression:
+        centroids_df = pd.merge(
             centroids_df,
-            {"mz_apex":     mz_round,
-             "left_mz":     mz_round,
-             "right_mz":    mz_round},
-            ["highest_intensity",
-             "integrated_intensity",
-             "chimeric_intensity_in_centroid",
-             "chimeric_remainder"]
+            full_matchmaker.centroids[["chimeric_intensity_in_centroid", "chimeric_remainder"]],
+            left_index=True,
+            right_index=True,
+            how='left'
         )
-    centroids_df.drop(columns=["left_idx", "right_idx"], inplace=True)
+        centroids_df.fillna(0, inplace=True)
+
+        if params["rounding"] != -1:
+            centroids_df = round_df(
+                centroids_df,
+                {"mz_apex":     mz_round,
+                 "left_mz":     mz_round,
+                 "right_mz":    mz_round},
+                ["highest_intensity",
+                 "integrated_intensity",
+                 "chimeric_intensity_in_centroid",
+                 "chimeric_remainder"]
+            )
+        centroids_df.drop(columns=["left_idx", "right_idx"], inplace=True)
     
     if debug:
         return proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, centroids_df, full_matchmaker, protein_ions_matchmaker

@@ -74,6 +74,8 @@ def parse_oligomeric_state(state, sequence_sep="-"):
 # path = "/home/matteo/Projects/och_Kallol/mainzer/test_data/base_proteins.csv"
 def read_base_proteins(path):
     base_proteins = pd.read_csv(path)
+    base_proteins.name = base_proteins.name.str.replace(" ","_") # no spaces will be allowed,....
+    base_proteins.amino_acidic_sequence = base_proteins.amino_acidic_sequence.str.replace(" ","")
     base_proteins["formula"] = base_proteins["amino_acidic_sequence"].apply(aa2formula)
     base_proteins["oligomeric_states"] = base_proteins.oligomeric_states.apply(parse_oligomeric_state)
     return base_proteins
@@ -81,4 +83,6 @@ def read_base_proteins(path):
 # path = "/home/matteo/Projects/och_Kallol/mainzer/test_data/base_lipids.csv"
 def read_base_lipids(path):
     base_lipids = pd.read_csv(path)
+    base_lipids.name = base_lipids.name.str.replace(" ","_") # no spaces will be allowed,....
+    base_lipids.formula = base_lipids.formula.str.replace(" ","")
     return base_lipids
