@@ -53,8 +53,6 @@ def lipido_IO(settings, output_folder):
                    params=settings.settings,
                    verbose=verbose)
 
-    
-
     if verbose:
         print("Saving results.")
 
@@ -82,7 +80,8 @@ def run_lipido(mz,
                base_proteins,
                base_lipids,
                params,
-               verbose=False):
+               verbose=False,
+               debug=False):
     if verbose:
         print("Centroiding")#TODO: change for logger
 
@@ -158,7 +157,7 @@ def run_lipido(mz,
 
     full_matchmaker = \
         single_precursor_regression(promissing_ions,
-                                    min_charge_sequence_length=params["min_charge_sequence_length"],
+                                    min_charge_sequence_length=1,
                                     **regression_kwds)
 
     run_chimeric_regression = params["chimeric_regression_fits_cnt"] > 0
@@ -261,5 +260,8 @@ def run_lipido(mz,
         )
     centroids_df.drop(columns=["left_idx", "right_idx"], inplace=True)
     
-    return proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, centroids_df
+    if debug:
+        return proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, centroids_df, full_matchmaker, protein_ions_matchmaker
+    else:
+        return proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, centroids_df, 
 

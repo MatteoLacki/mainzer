@@ -1,6 +1,5 @@
 %load_ext autoreload
 %autoreload 2
-
 from datetime import datetime
 from pprint import pprint
 import pandas as pd
@@ -36,6 +35,7 @@ from mainzer.matchmaker import mark_rows
 from mainzer.charge_ops import cluster_charges
 from mainzer.models import fit_DeconvolvedUnderfit
 from mainzer.graph_ops import bipartiteGraph2regressionProblem
+from math import ceil, log10
 
 data_folder = Path("/home/matteo/Projects/och_Kallol/mainzer/test_data/small_spectrum")
 data_folder.exists()
@@ -50,107 +50,19 @@ params = settings.settings
 verbose = params["verbose"]
 
 
-# proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, centroids_df = \
-#         run_lipido(mz=mz,
-#                    intensity=intensity,
-#                    base_proteins=base_proteins,
-#                    base_lipids=base_lipids,
-#                    params=settings.settings,
-#                    verbose=verbose)
-# plot_fit(centroids_df)
+proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, centroids_df, full_matchmaker, protein_ions_matchmaker = \
+        run_lipido(mz=mz,
+                   intensity=intensity,
+                   base_proteins=base_proteins,
+                   base_lipids=base_lipids,
+                   params=settings.settings,
+                   verbose=verbose,
+                   debug=True)
 
+plot_fit(centroids_df)
 
-#TODO: reintroduce1 Michals baseline correction idea
-centroids_df = cluster_spectrum(mz, intensity)
+proteins.to_csv("extended_proteins_report.csv", index=False)
+silly_prot = proteins.query("name=='Vamp2 + DOPC + 3 DOPE + RhodaminePE'")
+formula, charge = silly_prot["formula"].iloc[0], silly_prot["charge"].iloc[0]
 
-# this is simple: filerting on `max_intensity` in `centroids_df`
-filtered_centroids_df = centroids_df[
-    (centroids_df.highest_intensity >= params["min_highest_intensity"]).values &\
-    (centroids_df.left_mz           >= params["min_mz"]).values &\
-    (centroids_df.right_mz          <= params["max_mz"]).values
-].copy()
-
-if verbose:
-    print("Getting proteins mers")#TODO: change for logger
-# initially we search for proteins only
-
-protein_mers = mered_proteins(base_proteins, params["only_heteromers"])
-protein_ions = molecules2df(protein_mers,
-                            range(params["min_protein_cluster_charge"],
-                                  params["max_protein_cluster_charge"]+1))
-
-if verbose:
-    print("Setting up IsoSpec (soon to defeat NeutronStar, if it already does not).")
-isotopic_calculator = IsotopicCalculator(params["isotopic_coverage"], 
-                                         params["isotopic_bin_size"])
-
-if verbose:
-    print("Checking for promissing proteins")
-
-regression_kwds = params.copy()
-regression_kwds["centroids"] = filtered_centroids_df
-regression_kwds["isotopic_calculator"] = isotopic_calculator
-regression_kwds["verbose"] = verbose
-del regression_kwds["min_charge_sequence_length"]
-
-protein_ions_matchmaker = \
-    single_precursor_regression(protein_ions,
-                                min_charge_sequence_length=params["min_charge_sequence_length"],
-                                **regression_kwds)
-promissing_protein_ions_df = protein_ions_matchmaker.ions[protein_ions_matchmaker.ions.reason_for_filtering_out=="none"].copy()
-
-if verbose:
-    print("Getting lipid mers")
-
-free_lipid_mers = dict(mered_lipids(base_lipids,
-                                    params["min_lipid_mers"],
-                                    params["max_lipid_mers"]))
-free_lipids_no_charge_df = molecules2df(free_lipid_mers)
-free_lipids_with_charge_df = molecules2df(
-    free_lipid_mers, 
-    charges=range(params["min_free_lipid_cluster_charge"],
-                  params["max_free_lipid_cluster_charge"])
-)
-
-if verbose:
-    print("Getting promissing protein-lipid centroids.")
-
-
-# from mainzer.formulas import add_formulas
-promissing_protein_lipid_complexes = \
-    merge_free_lipids_and_promissing_proteins(free_lipids_no_charge_df,
-                                              promissing_protein_ions_df)
-
-promissing_proteins = promissing_protein_ions_df[["name","formula","charge"]].copy()
-promissing_proteins['contains_protein'] = True
-promissing_protein_lipid_complexes['contains_protein'] = True
-free_lipids_with_charge_df['contains_protein'] = False
-
-# Promissing Ions = Promissing Proteins + Protein Lipid Clusters + Free Lipid Clusters
-promissing_ions = pd.concat([promissing_proteins,
-                             promissing_protein_lipid_complexes,
-                             free_lipids_with_charge_df],
-                             ignore_index=True)
-
-full_matchmaker = \
-    single_precursor_regression(promissing_ions,
-                                min_charge_sequence_length=1,
-                                **regression_kwds)
-
-run_chimeric_regression = params["chimeric_regression_fits_cnt"] > 0
-
-# full_matchmaker.ions[full_matchmaker.ions.reason_for_filtering_out == 'none']
-
-if run_chimeric_regression:
-    if verbose:
-        print("Performing chimeric regression.")
-    full_matchmaker = turn_single_precursor_regression_chimeric(
-        full_matchmaker,
-        params["fitting_to_void_penalty"], 
-        merge_zeros=True,
-        normalize_X=False,
-        chimeric_regression_fits_cnt=params["chimeric_regression_fits_cnt"],
-        min_chimeric_intensity_threshold=params["min_chimeric_intensity_threshold"],
-        verbose=verbose
-    )
-
+full_matchmaker.plot_ion_assignment(formula, charge, mz, intensity)
