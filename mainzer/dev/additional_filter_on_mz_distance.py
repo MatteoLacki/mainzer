@@ -60,7 +60,8 @@ proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, cent
                    verbose=verbose,
                    debug=True)
 
-names = set(full_matchmaker.ions.query("charge == 3 and contains_protein").name)
+proteins.query("charge == 3")
+names = set(proteins.query("charge == 3").name)
 
 def remove_count(name):
     split = name.split(" ")
@@ -78,7 +79,11 @@ def get_ions_without_single_bound_species(names):
                 res.append(name)
     return res
 
-get_ions_without_single_bound_species(names)
+import json
+
+with open("to_eliminate.json", "w") as f:
+    json.dump(get_ions_without_single_bound_species(names), f, indent=3)
+
 
 
 
