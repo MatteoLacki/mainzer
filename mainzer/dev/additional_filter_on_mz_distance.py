@@ -60,44 +60,44 @@ proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, cent
                    verbose=verbose,
                    debug=True)
 
-proteins.query("charge == 3")
-names = set(proteins.query("charge == 3").name)
+# proteins.query("charge == 3")
+# names = set(proteins.query("charge == 3").name)
 
-def remove_count(name):
-    split = name.split(" ")
-    return split[len(split)-1]
+# def remove_count(name):
+#     split = name.split(" ")
+#     return split[len(split)-1]
 
-def get_ions_without_single_bound_species(names):
-    names = set(names)
-    res = []
-    for name in names:
-        if name.count(" + ") > 1:
-            protein_lipids = name.split(" + ")
-            protein = protein_lipids[0]
-            lipids = protein_lipids[1:]
-            if any(f"{protein} + {remove_count(lipid)}" not in names for lipid in lipids):
-                res.append(name)
-    return res
+# def get_ions_without_single_bound_species(names):
+#     names = set(names)
+#     res = []
+#     for name in names:
+#         if name.count(" + ") > 1:
+#             protein_lipids = name.split(" + ")
+#             protein = protein_lipids[0]
+#             lipids = protein_lipids[1:]
+#             if any(f"{protein} + {remove_count(lipid)}" not in names for lipid in lipids):
+#                 res.append(name)
+#     return res
 
-import json
+# import json
 
-with open("to_eliminate.json", "w") as f:
-    json.dump(get_ions_without_single_bound_species(names), f, indent=3)
-
-
+# with open("to_eliminate.json", "w") as f:
+#     json.dump(get_ions_without_single_bound_species(names), f, indent=3)
 
 
-# plot_fit(centroids_df)
 
-# proteins.to_csv("extended_proteins_report.csv", index=False)
-# silly_prot = proteins.query("name=='Vamp2 + DOPC + 3 DOPE + RhodaminePE'")
-# formula, charge = silly_prot["formula"].iloc[0], silly_prot["charge"].iloc[0]
-# full_matchmaker.plot_ion_assignment(formula, charge, mz, intensity)
-# full_matchmaker.ions
 
-from mainzer.formulas import add_formulas
+# # plot_fit(centroids_df)
 
-free_lipids = free_lipids_no_charge_df
-promissing_proteins = promissing_protein_ions_df
-merge_free_lipids_and_promissing_proteins(free_lipids_no_charge_df,
-                                          promissing_protein_ions_df)
+# # proteins.to_csv("extended_proteins_report.csv", index=False)
+# # silly_prot = proteins.query("name=='Vamp2 + DOPC + 3 DOPE + RhodaminePE'")
+# # formula, charge = silly_prot["formula"].iloc[0], silly_prot["charge"].iloc[0]
+# # full_matchmaker.plot_ion_assignment(formula, charge, mz, intensity)
+# # full_matchmaker.ions
+
+# from mainzer.formulas import add_formulas
+
+# free_lipids = free_lipids_no_charge_df
+# promissing_proteins = promissing_protein_ions_df
+# merge_free_lipids_and_promissing_proteins(free_lipids_no_charge_df,
+#                                           promissing_protein_ions_df)
