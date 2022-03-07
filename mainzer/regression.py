@@ -5,19 +5,21 @@ def single_precursor_regression(
     ions,
     centroids,
     isotopic_calculator,
-    neighbourhood_thr=1.1,
-    min_neighbourhood_intensity=100,
-    max_expected_ppm_distance=15,
-    underfitting_quantile=0.0,
-    min_total_fitted_probability=.8,
-    min_max_intensity_threshold=100,
-    min_charge_sequence_length=1,
-    verbose=False,
+    neighbourhood_thr: float=1.1,
+    min_neighbourhood_intensity: float=100.0,
+    max_expected_ppm_distance: float=15.0,
+    underfitting_quantile: float=0.0,
+    min_total_fitted_probability: float=.8,
+    min_max_intensity_threshold: float=100,
+    min_charge_sequence_length: int=1,
+    verbose: bool=False,
     **kwargs
 ):
-    matchmaker = Matchmaker(ions,
-                            centroids,
-                            isotopic_calculator)
+    matchmaker = Matchmaker(
+        ions=ions,
+        centroids=centroids,
+        isotopic_calculator=isotopic_calculator,
+    )
     matchmaker.get_isotopic_summaries()
     matchmaker.get_neighbourhood_intensities(neighbourhood_thr)
     matchmaker.assign_isotopologues_to_centroids(min_neighbourhood_intensity, verbose)

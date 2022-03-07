@@ -80,6 +80,7 @@ def run_lipido(mz,
     centroids_df = mainzer.signal_ops.cluster_spectrum(mz, intensity)
     
     # this is simple: filerting on `max_intensity` in `centroids_df`
+    # do not use df.query: does not work on Windows after py2exe
     filtered_centroids_df = centroids_df[
         (centroids_df.highest_intensity >= params["min_highest_intensity"]).values &\
         (centroids_df.left_mz           >= params["min_mz"]).values &\
@@ -91,15 +92,16 @@ def run_lipido(mz,
     # initially we search for proteins only
 
     protein_mers = mainzer.molecule_ops.mered_proteins(base_proteins, params["only_heteromers"])
-    protein_ions = mainzer.molecule_ops.molecules2df(protein_mers,
-                                range(params["min_protein_cluster_charge"],
-                                      params["max_protein_cluster_charge"]+1))
+    protein_ions = mainzer.molecule_ops.molecules2df(
+        molecules=protein_mers,
+        charges=range(params["min_protein_cluster_charge"], params["max_protein_cluster_charge"]+1)
+    )
 
     if verbose:
         print("Setting up IsoSpec (soon to defeat NeutronStar, if it already does not).")
     isotopic_calculator = mainzer.isotope_ops.IsotopicCalculator(
-        params["isotopic_coverage"], 
-        params["isotopic_bin_size"]
+        coverage=params["isotopic_coverage"], 
+        bin_size=params["isotopic_bin_size"]
     )
 
     if verbose:
@@ -123,9 +125,9 @@ def run_lipido(mz,
     
     free_lipid_mers = dict(
         mainzer.molecule_ops.mered_lipids(
-            base_lipids,
-            params["min_lipid_mers"],
-            params["max_lipid_mers"]
+            base_lipids=base_lipids,
+            min_lipid_mers=params["min_lipid_mers"],
+            max_lipid_mers=params["max_lipid_mers"]
         )
     )
     free_lipids_no_charge_df = mainzer.molecule_ops.molecules2df(free_lipid_mers)
