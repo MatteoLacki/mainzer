@@ -1,37 +1,27 @@
-from datetime import datetime
-from math import log10, ceil
+import datetime
+import math
 import pandas as pd
 import pathlib
 
 # from .baseline import strip_baseline
-from mainzer.data_frame_ops import round_df
-from mainzer.isotope_ops import IsotopicCalculator
-from mainzer.molecule_ops import \
-    mered_proteins,\
-    mered_lipids,\
-    molecules2df,\
-    crosslink,\
-    merge_free_lipids_and_promissing_proteins
-from mainzer.read import \
-    read_spectrum,\
-    read_base_lipids,\
-    read_base_proteins
-from mainzer.regression import \
-    single_precursor_regression,\
-    turn_single_precursor_regression_chimeric
-from mainzer.signal_ops import cluster_spectrum
+import mainzer.data_frame_ops
+import mainzer.isotope_ops
+import mainzer.molecule_ops
+import mainzer.read
+import mainzer.regression
+import mainzer.signal_ops
 
 
 def lipido_IO(settings, output_folder):
     """ 
     Read in necessary data and saves the outputs.
     """
-    analysis_time = datetime.now().strftime('lipido__date_%Y_%m_%d_time_%H_%M_%S')
+    analysis_time = datetime.datetime.now().strftime('lipido__date_%Y_%m_%d_time_%H_%M_%S')
 
-    base_lipids   = read_base_lipids(settings['path_base_lipids'])
-    base_proteins = read_base_proteins(settings['path_base_proteins'])
+    base_lipids   = mainzer.read.read_base_lipids(settings['path_base_lipids'])
+    base_proteins = mainzer.read.read_base_proteins(settings['path_base_proteins'])
     print(settings['path_spectrum'])
-    mz, intensity = read_spectrum(settings['path_spectrum'])
+    mz, intensity = mainzer.read.read_spectrum(settings['path_spectrum'])
     
     output_folder = pathlib.Path(output_folder)
     final_folder = output_folder/analysis_time
@@ -83,10 +73,11 @@ def run_lipido(mz,
                verbose=False,
                debug=False):
     if verbose:
-        print("Centroiding")#TODO: change for logger
+        print("Centroiding")#TODO: change for a logger... wait, whaaat? No way we will ever get so orderly.
 
-    #TODO: reintroduce1 Michals baseline correction idea
-    centroids_df = cluster_spectrum(mz, intensity)
+    #TODO: reintroduce Michals baseline correction idea: the intensity correction might be dependent upon
+    # mass to charge ratio.
+    centroids_df = mainzer.signal_ops.cluster_spectrum(mz, intensity)
     
     # this is simple: filerting on `max_intensity` in `centroids_df`
     filtered_centroids_df = centroids_df[
@@ -99,15 +90,17 @@ def run_lipido(mz,
         print("Getting proteins mers")#TODO: change for logger
     # initially we search for proteins only
 
-    protein_mers = mered_proteins(base_proteins, params["only_heteromers"])
-    protein_ions = molecules2df(protein_mers,
+    protein_mers = mainzer.molecule_ops.mered_proteins(base_proteins, params["only_heteromers"])
+    protein_ions = mainzer.molecule_ops.molecules2df(protein_mers,
                                 range(params["min_protein_cluster_charge"],
                                       params["max_protein_cluster_charge"]+1))
 
     if verbose:
         print("Setting up IsoSpec (soon to defeat NeutronStar, if it already does not).")
-    isotopic_calculator = IsotopicCalculator(params["isotopic_coverage"], 
-                                             params["isotopic_bin_size"])
+    isotopic_calculator = mainzer.isotope_ops.IsotopicCalculator(
+        params["isotopic_coverage"], 
+        params["isotopic_bin_size"]
+    )
 
     if verbose:
         print("Checking for promissing proteins")
@@ -119,7 +112,7 @@ def run_lipido(mz,
     del regression_kwds["min_charge_sequence_length"]
 
     protein_ions_matchmaker = \
-        single_precursor_regression(protein_ions,
+        mainzer.regression.single_precursor_regression(protein_ions,
                                     min_charge_sequence_length=params["min_charge_sequence_length"],
                                     **regression_kwds)
     promissing_protein_ions_df = protein_ions_matchmaker.ions[protein_ions_matchmaker.ions.reason_for_filtering_out=="none"].copy()
@@ -127,11 +120,11 @@ def run_lipido(mz,
     if verbose:
         print("Getting lipid mers")
     
-    free_lipid_mers = dict(mered_lipids(base_lipids,
+    free_lipid_mers = dict(mainzer.molecule_ops.mered_lipids(base_lipids,
                                         params["min_lipid_mers"],
                                         params["max_lipid_mers"]))
-    free_lipids_no_charge_df = molecules2df(free_lipid_mers)
-    free_lipids_with_charge_df = molecules2df(
+    free_lipids_no_charge_df = mainzer.molecule_ops.molecules2df(free_lipid_mers)
+    free_lipids_with_charge_df = mainzer.molecule_ops.molecules2df(
         free_lipid_mers, 
         charges=range(params["min_free_lipid_cluster_charge"],
                       params["max_free_lipid_cluster_charge"])
@@ -141,7 +134,7 @@ def run_lipido(mz,
         print("Getting promissing protein-lipid centroids.")
 
     promissing_protein_lipid_complexes = \
-        merge_free_lipids_and_promissing_proteins(free_lipids_no_charge_df,
+        mainzer.molecule_ops.merge_free_lipids_and_promissing_proteins(free_lipids_no_charge_df,
                                                   promissing_protein_ions_df)
     
     promissing_proteins = promissing_protein_ions_df[["name","formula","charge"]].copy()
@@ -156,7 +149,7 @@ def run_lipido(mz,
                                  ignore_index=True)
 
     full_matchmaker = \
-        single_precursor_regression(promissing_ions,
+        mainzer.regression.single_precursor_regression(promissing_ions,
                                     min_charge_sequence_length=1,
                                     **regression_kwds)
 
@@ -165,7 +158,7 @@ def run_lipido(mz,
     if run_chimeric_regression:
         if verbose:
             print("Performing chimeric regression.")
-        full_matchmaker = turn_single_precursor_regression_chimeric(
+        full_matchmaker = mainzer.regression.turn_single_precursor_regression_chimeric(
             full_matchmaker,
             params["fitting_to_void_penalty"], 
             merge_zeros=True,
@@ -180,7 +173,7 @@ def run_lipido(mz,
 
     # TODO: rething the settings... the column names should be there
     if params["rounding"] != -1:
-        mz_round = ceil(-log10(params["isotopic_bin_size"]))
+        mz_round = math.ceil(-math.log10(params["isotopic_bin_size"]))
         columns2int = ["neighbourhood_intensity",
                        "maximal_intensity_estimate",
                        "single_precursor_fit_error",
@@ -189,7 +182,7 @@ def run_lipido(mz,
                        "single_precursor_total_error"]
         if run_chimeric_regression:
             columns2int.append("chimeric_intensity_estimate")
-        final_ions = round_df(
+        final_ions = mainzer.data_frame_ops.round_df(
             final_ions,
             {"envelope_total_prob":          params["rounding"],
              "envelope_min_mz":              mz_round,
@@ -255,7 +248,7 @@ def run_lipido(mz,
         centroids_df.fillna(0, inplace=True)
 
         if params["rounding"] != -1:
-            centroids_df = round_df(
+            centroids_df = mainzer.data_frame_ops.round_df(
                 centroids_df,
                 {"mz_apex":     mz_round,
                  "left_mz":     mz_round,
