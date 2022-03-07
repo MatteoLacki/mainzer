@@ -49,7 +49,7 @@ class IntervalQuery:
             left (list): left ends of (open) intervals.
             right (list): right ends of (open) intervals.
         Returns:
-            IndexEdges: named tuple defining edges between matching query intervals and those already in the interval database.
+            PeaksIntervalsMatch: named tuple defining edges between matching query intervals and those already in the interval database.
         """
         left = np.array(left, dtype=float)
         right = np.array(right, dtype=float)
@@ -68,7 +68,7 @@ class IntervalQuery:
         Arguments:
             query_intervals (list): list of tuples with left and right ends of intervals.
         Returns:
-            IndexEdges: named tuple defining edges between matching query intervals and those already in the interval database.
+            PeaksIntervalsMatch: named tuple defining edges between matching query intervals and those already in the interval database.
         """
         left, right = zip(*query_intervals)
         return self.interval_query(left, right)
@@ -77,6 +77,14 @@ class IntervalQuery:
         self,
         x: np.array
     ) -> PeaksIntervalsMatch:
+        """Where do the provided points fall?
+
+        Arguments:
+            x (np.array): m/z cooridates of points.
+
+        Returns:
+            PeaksIntervalsMatch: Assignment of points to clusters.
+        """
         return self.interval_query(x,x)
 
     def __repr__(self):

@@ -1,7 +1,10 @@
 import numpy as np # needed only for array and arg_sort
 
 
-def cluster_sorted_charges(sorted_charges_array, min_charge_sequence=3):
+def cluster_sorted_charges(
+    sorted_charges_array: np.array,
+    min_charge_sequence: int=3
+):
     charge_prev = sorted_charges_array[0]
     assignments = np.zeros(len(sorted_charges_array), dtype=int)
     cluster_No  = 1
@@ -19,7 +22,10 @@ def cluster_sorted_charges(sorted_charges_array, min_charge_sequence=3):
     return assignments
 
 
-def cluster_charges(charges, min_charge_sequence=3):
+def cluster_charges(
+    charges: np.array, 
+    min_charge_sequence=3
+):
     charges = np.array(charges)
     order = np.argsort(charges)
     sorted_charges_array = charges[order]

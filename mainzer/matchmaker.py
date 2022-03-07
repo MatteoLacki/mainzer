@@ -6,11 +6,10 @@ import tqdm
 from dataclasses import dataclass
 from typing import Tuple, List
 
-from .intervals import IntervalQuery
-from .graph_ops import RegressionGraph
-from .models import fit_DeconvolvedUnderfit
-from .charge_ops import cluster_charges
-
+import mainzer.intervals
+import mainzer.graph_ops
+import mainzer.models
+import mainzer.charge_ops
 import mainzer.isotope_ops
 
 
@@ -39,8 +38,10 @@ class Matchmaker:
     def __post_init__(self):
         assert all(colname in self.ions.columns for colname in ("name","formula","charge")), "'ions_df' should be a pandas.DataFrame with columns 'name', 'formula', and 'charge'."
         # self.ions["reason_for_filtering_out"] = np.nan
-        self.centroids_intervals = IntervalQuery(self.centroids.left_mz,
-                                                 self.centroids.right_mz)
+        self.centroids_intervals = mainzer.intervals.IntervalQuery(
+            self.centroids.left_mz,
+            self.centroids.right_mz
+        )
         self._ion_lst = list(self.ION)
 
     def get_isotopic_summaries(self) -> None:
@@ -355,7 +356,7 @@ class Matchmaker:
         if min_charge_sequence_length > 1:
             self.ions = self.ions.set_index(self._ion_lst)
             formulas_charges = self.ions[self.ions.reason_for_filtering_out == "none"].index.to_frame(False)
-            formulas_charges["charge_group"] = formulas_charges.groupby("formula").charge.transform(cluster_charges)
+            formulas_charges["charge_group"] = formulas_charges.groupby("formula").charge.transform(mainzer.charge_ops.cluster_charges)
             formulas_charges = formulas_charges.set_index(self._ion_lst)
             self.ions["charge_group"] = formulas_charges
             self.ions.charge_group.fillna(0, inplace=True)
@@ -383,7 +384,7 @@ class Matchmaker:
             on=self._ion_lst
         )
 
-        self.G = RegressionGraph()
+        self.G = mainzer.graph_ops.RegressionGraph()
         for r in self.promissing_ions2centroids.itertuples():
             ion = r.formula, r.charge
             self.G.add_edge(ion, r.centroid, prob=r.isotopologue_prob )
@@ -398,11 +399,13 @@ class Matchmaker:
         return list(self.G.iter_convoluted_ions())
 
 
-    def fit_multiple_ion_regressions(self,
-                                     fitting_to_void_penalty=1.0, 
-                                     merge_zeros=True,
-                                     normalize_X=False,
-                                     verbose=False):
+    def fit_multiple_ion_regressions(
+        self,
+        fitting_to_void_penalty: float=1.0, 
+        merge_zeros: bool=True,
+        normalize_X: bool=False,
+        verbose: bool=False
+    ):
         #TODO: might not run estimates for single candidates: they are already calculated and 
         # but the problem is that the user might set different quantile.
         # so don't let him.
@@ -411,7 +414,7 @@ class Matchmaker:
             iter_problems = tqdm.tqdm(iter_problems,
                                       total=self.G.count_connected_components())
         
-        self.models = [fit_DeconvolvedUnderfit(X,Y, lam=fitting_to_void_penalty)
+        self.models = [mainzer.models.fit_DeconvolvedUnderfit(X,Y, lam=fitting_to_void_penalty)
                        for X,Y in iter_problems]
 
         self.chimeric_intensity_estimates = pd.concat([m.coef for m in self.models])
@@ -451,9 +454,10 @@ class Matchmaker:
 
         assert np.all(np.abs(self.centroids.chimeric_remainder[self.centroids.chimeric_remainder < 0]) < 1e-4), "The unfitted probabilties are negative and big."
         self.centroids.chimeric_remainder = np.where(
-                self.centroids.chimeric_remainder < 0,
-                0, 
-                self.centroids.chimeric_remainder)
+            self.centroids.chimeric_remainder < 0,
+            0, 
+            self.centroids.chimeric_remainder
+        )
 
 
     def filter_out_ions_with_low_chimeric_estimates(self, min_chimeric_intensity_threshold):
@@ -462,11 +466,14 @@ class Matchmaker:
 
     def reset_state_to_before_chimeric_regression(self):
         """This needs to be run to repeat regression [with lower number of control variables]."""
-        self.ions.drop(columns=["chimeric_intensity_estimate"],
-                       inplace=True)
-        self.centroids.drop(columns=["chimeric_remainder",
-                                     "chimeric_intensity_in_centroid"], 
-                            inplace=True)
+        self.ions.drop(
+            columns=["chimeric_intensity_estimate"],
+            inplace=True
+        )
+        self.centroids.drop(
+            columns=["chimeric_remainder", "chimeric_intensity_in_centroid"], 
+            inplace=True
+        )
         del self.models
         del self.chimeric_intensity_estimates
         del self.promissing_ions2centroids

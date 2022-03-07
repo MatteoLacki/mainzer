@@ -1,18 +1,26 @@
+from __future__ import annotations
+
 import collections
 import networkx as nx
 import numpy as np
 import pandas as pd
 
+from typing import Tuple
 
-def bipartiteGraph2regressionProblem(connected_component,
-                                     merge_zeros=True,
-                                     normalize_X=True):
+
+def bipartiteGraph2regressionProblem(
+    connected_component: RegressionGraph,
+    merge_zeros: bool=True,
+    normalize_X: bool=True
+) -> Tuple[pd.DataFrame]:
     Y = pd.Series(connected_component.intensities(), name="intensity")
     prob_out = pd.Series(connected_component.unmatched_probability())
-    X_np = nx.algorithms.bipartite.matrix.biadjacency_matrix(G=connected_component,
-                                                             weight="prob",
-                                                             row_order=Y.index,
-                                                             column_order=prob_out.index).toarray()
+    X_np = nx.algorithms.bipartite.matrix.biadjacency_matrix(
+        G=connected_component,
+        weight="prob",
+        row_order=Y.index,
+        column_order=prob_out.index
+    ).toarray()
     X = pd.DataFrame(X_np, columns=prob_out.index, index=Y.index)
     if merge_zeros:
         X_zero = pd.DataFrame([prob_out.values.T], columns=prob_out.index, index=[-1] )
@@ -30,29 +38,29 @@ def bipartiteGraph2regressionProblem(connected_component,
 
 
 class RegressionGraph(nx.Graph):
-    def connected_components(self):
+    def connected_components(self) -> Iterable[RegressionGraph]:
         for cc in nx.connected_components(self):
             yield self.subgraph(cc)
 
-    def count_connected_components(self):
+    def count_connected_components(self) -> int:
         i = 0
         for cc in nx.connected_components(self):
             i += 1
         return i
 
-    def count_nodes_in_subproblems(self):
+    def count_nodes_in_subproblems(self) -> pd.DataFrame:
         problem_size = lambda x: "interval_cnt" if isinstance(x, int) else "charged_formula_cnt"
         return pd.DataFrame(collections.Counter(problem_size(e) for e in cc) for cc in nx.connected_components(self))
 
-    def get_problem_sizes(self):
+    def get_problem_sizes(self) -> pd.DataFrame:
         return pd.DataFrame((X.shape for X,Y in self.iter_regression_problems()),
                             columns=("interval_cnt","charged_formula_cnt"))
 
-    def iter_convoluted_ions(self):
+    def iter_convoluted_ions(self) -> Iterable[dict]:
         for cc in nx.connected_components(self):
             yield {node for node in cc if isinstance(node, tuple)} 
 
-    def plot_problem_sizes(self, show=True):
+    def plot_problem_sizes(self, show: bool=True) -> None:
         import matplotlib.pyplot as plt
         complexity = self.get_problem_sizes() 
         plt.scatter(complexity.interval_cnt, complexity.charged_formula_cnt)
@@ -63,19 +71,27 @@ class RegressionGraph(nx.Graph):
         if show:
             plt.show()
 
-    def iter_regression_problems(self, merge_zeros=True, normalize_X=True):
+    def iter_regression_problems(
+        self,
+        merge_zeros: bool=True,
+        normalize_X: bool=True
+    ) -> Iterable[RegressionGraph]:
         for cc in self.connected_components():
             yield bipartiteGraph2regressionProblem(cc, merge_zeros=merge_zeros, normalize_X=normalize_X)
 
-    def intensities(self):
+    def intensities(self) -> dict:
         return nx.get_node_attributes(self, "intensity")
 
-    def unmatched_probability(self):
+    def unmatched_probability(self) -> dict:
         return nx.get_node_attributes(self, "prob_out")
 
-    def iter_chimeric_groups(self):
+    def iter_chimeric_groups(self) -> Iterable[pd.DataFrame]:
         for idx, ci in enumerate(self.iter_convoluted_ions()):
             formulas, charges = zip(*ci)    
-            yield pd.DataFrame({"formula": formulas,
-                                "charge": charges,
-                                "chimeric_group": idx})
+            yield pd.DataFrame(
+                {
+                    "formula": formulas,
+                    "charge": charges,
+                    "chimeric_group": idx
+                }
+            )

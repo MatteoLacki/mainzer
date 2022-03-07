@@ -1,7 +1,12 @@
 import numpy as np
+from typing import Tuple
 
 
-def strip_baseline(mzs, intensities, baseline):
+def strip_baseline(
+    mzs: np.array,
+    intensities: np.array,
+    baseline: float
+) -> Tuple[np.array]:
     if len(mzs) == 0:
         return [], []
 

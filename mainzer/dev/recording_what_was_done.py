@@ -25,7 +25,7 @@ if data_folder.exists():
 
 spectrum_path = next(data_folder.glob("*.mzML"))
 mz, intensity = mainzer.read.read_spectrum(str(spectrum_path))
-mainzer.plot.plot_spectrum(mz, intensity)
+# mainzer.plot.plot_spectrum(mz, intensity)
 
 base_lipids = mainzer.read.read_base_lipids(data_folder/"base_lipids.csv")
 base_proteins = mainzer.read.read_base_proteins(data_folder/"base_proteins.csv")

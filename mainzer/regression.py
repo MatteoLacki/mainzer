@@ -1,10 +1,14 @@
-from .matchmaker import Matchmaker
+import pandas as pd
+
+import mainzer.isotope_ops
+import mainzer.matchmaker
+
 
 
 def single_precursor_regression(
-    ions,
-    centroids,
-    isotopic_calculator,
+    ions: pd.DataFrame,
+    centroids: pd.DataFrame,
+    isotopic_calculator: mainzer.isotope_ops.IsotopicCalculator,
     neighbourhood_thr: float=1.1,
     min_neighbourhood_intensity: float=100.0,
     max_expected_ppm_distance: float=15.0,
@@ -15,7 +19,7 @@ def single_precursor_regression(
     verbose: bool=False,
     **kwargs
 ):
-    matchmaker = Matchmaker(
+    matchmaker = mainzer.matchmaker.Matchmaker(
         ions=ions,
         centroids=centroids,
         isotopic_calculator=isotopic_calculator,
@@ -35,13 +39,13 @@ def single_precursor_regression(
 
 
 def turn_single_precursor_regression_chimeric(
-    matchmaker,
-    fitting_to_void_penalty=1.0, 
-    merge_zeros=True,
-    normalize_X=False,
-    chimeric_regression_fits_cnt=3,
-    min_chimeric_intensity_threshold=100,
-    verbose=True,
+    matchmaker: mainzer.matchmaker.Matchmaker,
+    fitting_to_void_penalty: float=1.0,
+    merge_zeros: bool=True,
+    normalize_X: bool=False,
+    chimeric_regression_fits_cnt: int=3,
+    min_chimeric_intensity_threshold: float=100.0,
+    verbose: bool=True,
     **kwargs
 ):
     if chimeric_regression_fits_cnt >= 2:
@@ -59,32 +63,34 @@ def turn_single_precursor_regression_chimeric(
         matchmaker.filter_out_ions_with_low_chimeric_estimates(min_chimeric_intensity_threshold)
         matchmaker.reset_state_to_before_chimeric_regression()
         matchmaker.build_regression_bigraph()
-        matchmaker.fit_multiple_ion_regressions(fitting_to_void_penalty, 
-                                                merge_zeros,
-                                                normalize_X,
-                                                verbose)
+        matchmaker.fit_multiple_ion_regressions(
+            fitting_to_void_penalty, 
+            merge_zeros,
+            normalize_X,
+            verbose
+        )
     matchmaker.get_chimeric_groups()
     return matchmaker
 
 
 def chimeric_regression(
-    ions,
-    centroids,
-    isotopic_calculator,
-    neighbourhood_thr=1.1,
-    min_neighbourhood_intensity=100,
-    max_expected_ppm_distance_to_cluster_apex=15,
-    max_ppm_distance_top_prob_mz_cluster_apex=15,
-    underfitting_quantile=0.0,
-    min_total_fitted_probability=.8,
-    min_max_intensity_threshold=100,
-    min_charge_sequence_length=1,
-    fitting_to_void_penalty=1.0,
-    merge_zeros=True,
-    normalize_X=False,
-    chimeric_regression_fits_cnt=3,
-    min_chimeric_intensity_threshold=100,
-    verbose=False,
+    ions: pd.DataFrame,
+    centroids: pd.DataFrame,
+    isotopic_calculator: mainzer.isotope_ops.IsotopicCalculator,
+    neighbourhood_thr: float=1.1,
+    min_neighbourhood_intensity: float=100.0,
+    max_expected_ppm_distance_to_cluster_apex: float=15.0,
+    max_ppm_distance_top_prob_mz_cluster_apex: float=15.0,
+    underfitting_quantile: float=0.0,
+    min_total_fitted_probability: float=.8,
+    min_max_intensity_threshold: float=100.0,
+    min_charge_sequence_length: int=1,
+    fitting_to_void_penalty: float=1.0,
+    merge_zeros: bool=True,
+    normalize_X: bool=False,
+    chimeric_regression_fits_cnt: int=3,
+    min_chimeric_intensity_threshold: float=100,
+    verbose: bool=False,
     **kwargs
 ):
     """Full metal chimeric regression."""

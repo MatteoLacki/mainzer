@@ -16,6 +16,14 @@ class IsotopicCalculator:
     PROTON_MASS: float=1.007276
     
     def __call__(self, formula: str) -> IsoSpecPy.IsoDistribution:
+        """Get an instance of an isotopic distribution.
+
+        Arguments:
+            formula (str): A chemical formula.
+
+        Returns:
+            IsoSpecPy.IsoDistribution: An instance of the fine isotopic distribution.
+        """
         envelope = IsoSpecPy.IsoTotalProb(
             prob_to_cover=self.coverage,
             formula=formula,
@@ -26,46 +34,114 @@ class IsotopicCalculator:
         return envelope
 
     def masses_probs(self, formula: str) -> Tuple[np.array]:
+        """Get the masses and probabilities for a given chemical formula.
+
+        Arguments:
+            formula (str): A chemical formula.
+        
+        Returns:
+            tuple: An array with masses and with probabilities.
+        """
         envelope = self(formula)
         masses = envelope.np_masses()
         probs = envelope.np_probs()
         return masses, probs
 
     def spectrum(self, formula: str, charge: int=1) -> Tuple[np.array]:
+        """Get the mass to charge ratios and probabilities for a given chemical formula with charge.
+
+        Arguments:
+            formula (str): A chemical formula of the ion.
+            charge (int): Charge of the ion.
+
+        Returns:
+            tuple: An array with mass to charge ratios and with probabilities.
+        """
         envelope = self(formula)
         masses = envelope.np_masses()
         probs = envelope.np_probs()
-        return (masses / charge + self.PROTON_MASS, probs)
+        return (
+            masses / charge + self.PROTON_MASS,
+            probs
+        )
 
     def masses(self, formula: str) -> np.array:
+        """Get the masses for a given chemical formula.
+
+        Arguments:
+            formula (str): A chemical formula.
+        
+        Returns:
+            np.array: Masses of the isotopic distribution.
+        """
         return self(formula).np_masses()
 
     def mzs(self, formula: str, charge: int=1) -> np.array:
+        """Get the mass to charge ratios for a given chemical formula with charge.
+
+        Arguments:
+            formula (str): A chemical formula of the ion.
+            charge (int): Charge of the ion.
+
+        Returns:
+            np.array: Mass to charge rations of the isotopic distribution.
+        """
         return self.masses(formula) / charge + self.PROTON_MASS
 
     def probs(self, formula: str) -> np.array:
+        """Get the probabilities for a given chemical formula.
+
+        Arguments:
+            formula (str): A chemical formula.
+        
+        Returns:
+            np.array: Probabilities of the isotopic distribution.
+        """
         return self(formula).np_probs()    
 
+    def get_formula_stats(self, formula: str) -> dict:
+        envelope = self(formula)
+        masses = envelope.np_masses()
+        probs = envelope.np_probs()
+        top_prob_idx = np.argmax(envelope.np_probs())
+        return {
+            "formula": formula,
+            "envelope_size": len(envelope),
+            "envelope_total_prob": probs.sum(),
+            "min_mass": masses.min(),
+            "max_mass": masses.max(),
+            "top_prob_mass": masses[top_prob_idx]
+        }
+
+    #TODO: drop this: make statistics instead.
     def iter_envelope_summaries(
         self, 
         formulas: Iterable[str]
     ) -> Iterable[Dict]:
-        for formula in formulas:
-            envelope = self(formula)
-            masses = envelope.np_masses()
-            probs = envelope.np_probs()
-            top_prob_idx = np.argmax(envelope.np_probs())
-            yield {"formula": formula,
-                   "envelope_size": len(envelope),
-                   "envelope_total_prob": probs.sum(),
-                   "min_mass": masses.min(),
-                   "max_mass": masses.max(),
-                   "top_prob_mass": masses[top_prob_idx]}
+        """Iterate envelope statistics.
 
+        Arguments:
+            formulas (Iterable): Chemical formulas for which one needs the statistics.
+
+        Yields:
+            dict: Dictionary with statistics. 
+        """
+        for formula in formulas:
+            yield self.get_formula_stats(formula)
+
+    #TODO: drop this.
     def summary_df(
         self,
         formulas: Iterable[str]
     ) -> pd.DataFrame:
+        """Get a dataframe with envelope statistics.
+
+        Arguments:
+            formulas (Iterable): Chemical formulas for which one needs the statistics.
+
+        Yields:
+            dict: Dictionary with statistics. 
+        """
         return pd.DataFrame(self.iter_envelope_summaries(formulas))
 
     def ions_summary(
