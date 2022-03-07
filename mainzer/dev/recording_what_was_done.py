@@ -30,6 +30,8 @@ mainzer.plot.plot_spectrum(mz, intensity)
 base_lipids = mainzer.read.read_base_lipids(data_folder/"base_lipids.csv")
 base_proteins = mainzer.read.read_base_proteins(data_folder/"base_proteins.csv")
 settings = mainzer.settings.Settings.FromTOML(data_folder/"config.mainzer")
+
+
 params = settings.settings
 pprint.pprint(params)
 verbose=True

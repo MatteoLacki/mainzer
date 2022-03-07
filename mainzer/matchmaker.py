@@ -3,13 +3,25 @@ import numpy as np
 import pandas as pd
 import tqdm
 
+from dataclasses import dataclass
+from typing import Tuple, List
+
 from .intervals import IntervalQuery
 from .graph_ops import RegressionGraph
 from .models import fit_DeconvolvedUnderfit
 from .charge_ops import cluster_charges
 
+import mainzer.isotope_ops
 
-def mark_rows(table, ions_to_mark, names, column_name, marking, alternative=None):
+
+def mark_rows(
+    table: pd.DataFrame,
+    ions_to_mark,
+    names,
+    column_name: str,
+    marking,
+    alternative: bool=None
+) -> pd.DataFrame:
     table = table.set_index(names)
     table.loc[ions_to_mark, column_name] = marking
     if alternative is not None:
@@ -17,29 +29,36 @@ def mark_rows(table, ions_to_mark, names, column_name, marking, alternative=None
     return table.reset_index()
 
 
-class Matchmaker(object):
-    def __init__(self,
-                 ions,
-                 centroids,
-                 isotopic_calculator):
-        assert all(colname in ions.columns for colname in ("name","formula","charge")), "'ions_df' should be a pandas.DataFrame with columns 'name', 'formula', and 'charge'."
-        self.ions = ions
+@dataclass
+class Matchmaker:
+    ions: pd.DataFrame
+    centroids: pd.DataFrame
+    isotopic_calculator: mainzer.isotope_ops.IsotopicCalculator
+    ION: Tuple[str] = ("formula","charge")
+
+    def __post_init__(self):
+        assert all(colname in self.ions.columns for colname in ("name","formula","charge")), "'ions_df' should be a pandas.DataFrame with columns 'name', 'formula', and 'charge'."
         # self.ions["reason_for_filtering_out"] = np.nan
-        self.centroids = centroids
         self.centroids_intervals = IntervalQuery(self.centroids.left_mz,
                                                  self.centroids.right_mz)
-        self.isotopic_calculator = isotopic_calculator
-        self.ION = ["formula","charge"]
+        self._ion_lst = list(self.ION)
 
-
-    def get_isotopic_summaries(self):
+    def get_isotopic_summaries(self) -> None:
         """These include summaries of one ion's envelope: its size, total probability, minimal and maximal m/z, top-probable m/z."""
         self.ions = self.isotopic_calculator.ions_summary(self.ions)
 
 
-    def get_neighbourhood_intensities(self,
-                                      neighbourhood_thr=1.1):
-        """Get the signal intensity above the minimal m/z of the envelope minus neighbourhood_thr and velow the maximal m/z of the envelope plus neighbourhood_thr."""
+    def get_neighbourhood_intensities(
+        self,
+        neighbourhood_thr: float=1.1
+    ) -> None:
+        """Get neighbourhood intensities.
+
+        Get the signal intensity above the minimal m/z of the envelope minus neighbourhood_thr and below the maximal m/z of the envelope plus neighbourhood_thr.
+    
+        Arguments:
+            neighbourhood_thr (float): The threshold for neighbourhood.
+        """
         edges = self.centroids_intervals.interval_query(
             self.ions.envelope_min_mz - neighbourhood_thr,
             self.ions.envelope_max_mz + neighbourhood_thr
@@ -49,13 +68,16 @@ class Matchmaker(object):
         self.ions.neighbourhood_intensity.fillna(0, inplace=True)# NaN -> 0
 
 
-    def assign_isotopologues_to_centroids(self, 
-                                          min_neighbourhood_intensity=0,
-                                          verbose=False):
+    def assign_isotopologues_to_centroids(
+        self, 
+        min_neighbourhood_intensity: float=0,
+        verbose: bool=False
+    ) -> None:
+        """Assign isotopologues to centroids."""
 
         # using pandas it is faster to provide larger chunks of data to C++.
         # In C++ one could efficiently implement this code totally differently: asking for presence of isotopologues one after another.
-        ions_promissing = self.ions[self.ions.neighbourhood_intensity > 0][self.ION]
+        ions_promissing = self.ions[self.ions.neighbourhood_intensity > 0][self._ion_lst]
         ions_promissing.drop_duplicates(inplace=True)
 
         def iter_local_isotopologues2centroids():
@@ -95,7 +117,7 @@ class Matchmaker(object):
         self.isotopologues2centroids['mzprob'] = \
             self.isotopologues2centroids.mz * self.isotopologues2centroids.prob
         
-        self.ions2centroids = self.isotopologues2centroids.groupby(self.ION + ["centroid", "mz_apex"]).agg(
+        self.ions2centroids = self.isotopologues2centroids.groupby(self._ion_lst + ["centroid", "mz_apex"]).agg(
             {   "mz":     [min, max],
                 "mzprob": [sum, len],
                 "prob":    sum
@@ -117,7 +139,7 @@ class Matchmaker(object):
 
         self.ions2centroids["intensity_over_prob"] = self.ions2centroids.integrated_intensity / self.ions2centroids.isotopologue_prob
 
-        indices_of_highest_theoretical_peaks = self.isotopologues2centroids.groupby(self.ION+["centroid"]).prob.idxmax().values
+        indices_of_highest_theoretical_peaks = self.isotopologues2centroids.groupby(self._ion_lst+["centroid"]).prob.idxmax().values
 
         self.ions2centroids["top_mz"] = \
             self.isotopologues2centroids.mz.iloc[indices_of_highest_theoretical_peaks].values
@@ -125,7 +147,7 @@ class Matchmaker(object):
         self.ions2centroids["top_prob"] = \
             self.isotopologues2centroids.prob.iloc[indices_of_highest_theoretical_peaks].values
 
-        self.ions2centroids.top_prob /= self.ions2centroids.groupby(self.ION).top_prob.sum()
+        self.ions2centroids.top_prob /= self.ions2centroids.groupby(self._ion_lst).top_prob.sum()
 
         self.ions2centroids["ppm_distance_top_prob_mz_cluster_apex"] = \
             self.isotopologues2centroids.ppm_distance_apex_isotopologue.iloc[indices_of_highest_theoretical_peaks].values
@@ -137,7 +159,7 @@ class Matchmaker(object):
         self.ions = mark_rows(
             self.ions,
             ions_to_mark=[ion for ion in zip(self.ions.formula, self.ions.charge) if ion not in self.ions2centroids.index],
-            names=self.ION,
+            names=self._ion_lst,
             column_name="reason_for_filtering_out",
             marking="not_within_any_centroid",
             alternative="none"
@@ -146,7 +168,15 @@ class Matchmaker(object):
         self.ions2centroids = self.ions2centroids.reset_index()
 
 
-    def plot_ion_assignment(self, formula, charge, mz, intensity, mz_buffer=50, show=True):
+    def plot_ion_assignment(
+        self,
+        formula: str,
+        charge: int,
+        mz: np.array,
+        intensity: np.array,
+        mz_buffer: float=50,
+        show: bool=True
+    ) -> None:
         """This function is used for debugging purposes."""
         ION = self.isotopologues2centroids[(self.isotopologues2centroids.formula == formula) & (self.isotopologues2centroids.charge == charge) ]
         if len(ION):            
@@ -181,42 +211,44 @@ class Matchmaker(object):
 
 
     def mark_ions_far_from_apexes_of_centroids(
-            self, 
-            max_expected_ppm_distance=15
-        ):
+        self, 
+        max_expected_ppm_distance: float=15
+    ) -> None:
         """This function only marks thing."""
-        expected_ppm_dist = self.ions2centroids.groupby(self.ION).weighted_ppm_distance_top_prob_mz_cluster_apex.sum()
+        expected_ppm_dist = self.ions2centroids.groupby(self._ion_lst).weighted_ppm_distance_top_prob_mz_cluster_apex.sum()
         ions_far_from_centroid_apexes = expected_ppm_dist[expected_ppm_dist.abs() > max_expected_ppm_distance]
 
         mark_far_away_ions = functools.partial(
             mark_rows, 
             ions_to_mark=ions_far_from_centroid_apexes.index,
-            names=self.ION,
+            names=self._ion_lst,
             column_name="reason_for_filtering_out",
             marking="far_from_centroid_apex")
 
         self.ions2centroids = mark_far_away_ions(self.ions2centroids)
         self.isotopologues2centroids = mark_far_away_ions(self.isotopologues2centroids)
         self.ions = mark_far_away_ions(self.ions)
-        self.ions.set_index(self.ION, inplace=True)
+        self.ions.set_index(self._ion_lst, inplace=True)
         self.ions["expected_ppm_dist"] = expected_ppm_dist
         self.ions.expected_ppm_dist.fillna(-1, inplace=True)
         self.ions.reset_index(inplace=True)
 
-    def estimate_max_ion_intensity(self,
-                                   underfitting_quantile=0):
+    def estimate_max_ion_intensity(
+        self,
+        underfitting_quantile: float=0
+    ) -> None:
         assert underfitting_quantile >= 0 and underfitting_quantile <= 1, "'underfitting_quantile' is a probability and so must be between 0 and 1."
         
-        # self.ions = self.ions.set_index(self.ION)
-        # self.ions['maximal_intensity_estimate'] = self.ions2centroids.groupby(self.ION).intensity_over_prob.quantile(underfitting_quantile)
+        # self.ions = self.ions.set_index(self._ion_lst)
+        # self.ions['maximal_intensity_estimate'] = self.ions2centroids.groupby(self._ion_lst).intensity_over_prob.quantile(underfitting_quantile)
         # self.ions['maximal_intensity_estimate'].fillna(0, inplace=True)
 
 
-        self.maximal_intensity_estimate = self.ions2centroids.groupby(self.ION).intensity_over_prob.quantile(underfitting_quantile)
+        self.maximal_intensity_estimate = self.ions2centroids.groupby(self._ion_lst).intensity_over_prob.quantile(underfitting_quantile)
         self.maximal_intensity_estimate.name = "maximal_intensity_estimate"
         self.ions2centroids = self.ions2centroids.merge(
             self.maximal_intensity_estimate,
-            left_on=self.ION, 
+            left_on=self._ion_lst, 
             right_index=True,
             how="left"
         )
@@ -225,7 +257,7 @@ class Matchmaker(object):
             self.ions2centroids.maximal_intensity_estimate * \
             self.ions2centroids.isotopologue_prob
 
-        single_precursor_fit_error = self.ions2centroids.groupby(self.ION).single_precursor_fit_error.sum()
+        single_precursor_fit_error = self.ions2centroids.groupby(self._ion_lst).single_precursor_fit_error.sum()
 
         self.maximal_intensity_estimate = pd.concat([
             self.maximal_intensity_estimate,
@@ -234,15 +266,15 @@ class Matchmaker(object):
         # feed maximal_intensity and its error to ions
         self.ions = self.ions.merge(
             self.maximal_intensity_estimate,
-            left_on=self.ION, 
+            left_on=self._ion_lst, 
             right_index=True,
             how="left"
         )
         self.ions.fillna(0, inplace=True)
 
 
-    def summarize_ion_assignments(self):
-        self.ion_assignments_summary = self.ions2centroids.groupby(self.ION).agg(
+    def summarize_ion_assignments(self) -> None:
+        self.ion_assignments_summary = self.ions2centroids.groupby(self._ion_lst).agg(
             {"isotopologue_prob":"sum",
              "integrated_intensity":"sum", # Here sum is OK: we sum different centroids' intensities.
              "centroid":"nunique"}
@@ -254,9 +286,9 @@ class Matchmaker(object):
         )
         self.ion_assignments_summary = pd.merge(
             self.ion_assignments_summary,
-            self.ions[self.ION + ["envelope_total_prob"]],
+            self.ions[self._ion_lst + ["envelope_total_prob"]],
             left_index=True,
-            right_on=self.ION
+            right_on=self._ion_lst
         )
         self.ion_assignments_summary["envelope_unmatched_prob"] = \
             self.ion_assignments_summary.envelope_total_prob - \
@@ -272,27 +304,30 @@ class Matchmaker(object):
         self.ions = pd.merge(
             self.ions,
             self.ion_assignments_summary.drop("envelope_total_prob", axis=1),
-            on=self.ION,
+            on=self._ion_lst,
             how="left"
         )
         self.ions.fillna(0, inplace=True)
         self.ions.explainable_centroids = self.ions.explainable_centroids.astype(int)
 
 
-    def get_theoretical_intensities_where_no_signal_was_matched(self):
+    def get_theoretical_intensities_where_no_signal_was_matched(self) -> None:
         # another way to measure error: the intensity of unmatched fragments
         self.ions["single_precursor_unmatched_estimated_intensity"] =\
             self.ions.maximal_intensity_estimate * \
             self.ions.envelope_unmatched_prob
 
 
-    def get_total_intensity_errors_for_maximal_intensity_estimates(self):
+    def get_total_intensity_errors_for_maximal_intensity_estimates(self) -> None:
         self.ions["single_precursor_total_error"] = \
             self.ions.single_precursor_fit_error + \
             self.ions.single_precursor_unmatched_estimated_intensity
 
 
-    def mark_ions_with_probability_mass_outside_centroids(self, min_total_fitted_probability=.8):
+    def mark_ions_with_probability_mass_outside_centroids(
+        self,
+        min_total_fitted_probability: float=.8,
+    ) -> None:
         self.ions.reason_for_filtering_out = np.where(
             (self.ions.reason_for_filtering_out == "none") & \
             (self.ions.envelope_matched_to_signal < min_total_fitted_probability), 
@@ -301,7 +336,10 @@ class Matchmaker(object):
         )
 
 
-    def mark_ions_with_low_maximal_intensity(self, min_max_intensity_threshold=0):
+    def mark_ions_with_low_maximal_intensity(
+        self,
+        min_max_intensity_threshold: float=0,
+    ) -> None:
         self.ions.reason_for_filtering_out = np.where(
             (self.ions.reason_for_filtering_out == "none") & 
             (self.ions.maximal_intensity_estimate < min_max_intensity_threshold), 
@@ -310,12 +348,15 @@ class Matchmaker(object):
         )
 
 
-    def mark_ions_not_in_charge_cluster(self, min_charge_sequence_length=1):
+    def mark_ions_not_in_charge_cluster(
+        self,
+        min_charge_sequence_length: int=1,
+    ) -> None:
         if min_charge_sequence_length > 1:
-            self.ions = self.ions.set_index(self.ION)
+            self.ions = self.ions.set_index(self._ion_lst)
             formulas_charges = self.ions[self.ions.reason_for_filtering_out == "none"].index.to_frame(False)
             formulas_charges["charge_group"] = formulas_charges.groupby("formula").charge.transform(cluster_charges)
-            formulas_charges = formulas_charges.set_index(self.ION)
+            formulas_charges = formulas_charges.set_index(self._ion_lst)
             self.ions["charge_group"] = formulas_charges
             self.ions.charge_group.fillna(0, inplace=True)
             self.ions.charge_group = self.ions.charge_group.astype(int)
@@ -328,18 +369,18 @@ class Matchmaker(object):
             self.ions.reset_index(inplace=True)
 
 
-    def build_regression_bigraph(self):
-        good_ions = self.ions[self.ions.reason_for_filtering_out == 'none'][["name"]+self.ION]
+    def build_regression_bigraph(self) -> None:
+        good_ions = self.ions[self.ions.reason_for_filtering_out == 'none'][["name"]+self._ion_lst]
         self.promissing_ions2centroids = pd.merge(
             self.ions2centroids,
             good_ions,
-            on=self.ION
+            on=self._ion_lst
         )
         
         promissing_ions_assignments_summary = pd.merge(
             self.ion_assignments_summary,
             good_ions,
-            on=self.ION
+            on=self._ion_lst
         )
 
         self.G = RegressionGraph()
@@ -353,7 +394,7 @@ class Matchmaker(object):
             self.G.nodes[ion]["prob_out"] = r.envelope_unmatched_prob
 
 
-    def get_chimeric_ions(self):
+    def get_chimeric_ions(self) -> List:
         return list(self.G.iter_convoluted_ions())
 
 
@@ -375,19 +416,19 @@ class Matchmaker(object):
 
         self.chimeric_intensity_estimates = pd.concat([m.coef for m in self.models])
         self.chimeric_intensity_estimates.name = 'chimeric_intensity_estimate'
-        self.chimeric_intensity_estimates.index.names = self.ION
+        self.chimeric_intensity_estimates.index.names = self._ion_lst
 
         self.ions = pd.merge(# passing estimates unto ions
             self.ions,
             self.chimeric_intensity_estimates,
-            left_on=self.ION,
+            left_on=self._ion_lst,
             right_index=True,
             how="left"
         )
         self.promissing_ions2centroids = pd.merge(# passing estimates unto ions
             self.promissing_ions2centroids,
             self.chimeric_intensity_estimates,
-            left_on=self.ION,
+            left_on=self._ion_lst,
             right_index=True,
             how="left"
         )
@@ -438,6 +479,6 @@ class Matchmaker(object):
         self.ions = pd.merge(
             self.ions,
             chimeric_groups,
-            on=self.ION
+            on=self._ion_lst
         )
 

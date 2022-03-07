@@ -1,14 +1,22 @@
 from collections import namedtuple
-from ncls import FNCLS
+from dataclasses import dataclass
+from typing import List, Tuple
+
+import ncls
 import numpy as np
 if False: # Do NOT remove this: this is to trick pyinstaller into
           # importing the necessary packages
     import scipy.spatial.transform._rotation_groups
 
-Indices = namedtuple("IndexEdges", "query interval_db")
 
-#TODO: reimplement this ourselves to get rid of NCLS dependency: it's fishy
-class IntervalQuery(object):
+@dataclass
+class PeaksIntervalsMatch:
+    query: np.array
+    interval_db: np.array
+
+
+@dataclass
+class IntervalQuery:
     """Structure for rapid building of a bi-partite graph of interval intersections.
 
     The intervals are open.
@@ -20,14 +28,22 @@ class IntervalQuery(object):
     Each time, the edges of the graphs are returned iff the red and white interval intersect [sparse outcome].
     This was tested agains pandas interval indices and python intervaltree and won.
     """
-    def __init__(self, left, right):
-        self.left  = np.array(left,  dtype=float)
-        self.right = np.array(right, dtype=float)
-        idx = np.arange(len(left), dtype=np.int64)
-        # ids can support indices, but this overcomplicates queries that can be simply integer based.
-        self.fncls = FNCLS(self.left, self.right, idx)
+    left: np.array
+    right: np.array
 
-    def interval_query(self, left, right):
+
+    def __post_init__(self):
+        self.left  = np.array(self.left,  dtype=float)
+        self.right = np.array(self.right, dtype=float)
+        idx = np.arange(len(self.left), dtype=np.int64)
+        # ids can support indices, but this overcomplicates queries that can be simply integer based.
+        self.fncls = ncls.FNCLS(self.left, self.right, idx)
+
+    def interval_query(
+        self,
+        left: np.array,
+        right: np.array
+    ) -> PeaksIntervalsMatch:
         """
         Arguments:
             left (list): left ends of (open) intervals.
@@ -39,9 +55,15 @@ class IntervalQuery(object):
         right = np.array(right, dtype=float)
         idx = np.arange(len(left), dtype=np.int64)
         query_idxs, db_idxs = self.fncls.all_overlaps_both(left, right, idx)
-        return Indices(query_idxs.astype(np.int64), db_idxs.astype(np.int64))
+        return PeaksIntervalsMatch(
+            query=query_idxs.astype(np.int64),
+            interval_db=db_idxs.astype(np.int64)
+        )
 
-    def interval_query_tuples(self, query_intervals):
+    def interval_query_tuples(
+        self, 
+        query_intervals: List[Tuple[float, float]]
+    ) -> PeaksIntervalsMatch:
         """
         Arguments:
             query_intervals (list): list of tuples with left and right ends of intervals.
@@ -51,14 +73,18 @@ class IntervalQuery(object):
         left, right = zip(*query_intervals)
         return self.interval_query(left, right)
 
-    def point_query(self, x):
+    def point_query(
+        self,
+        x: np.array
+    ) -> PeaksIntervalsMatch:
         return self.interval_query(x,x)
 
     def __repr__(self):
         return f"[({self.left[0]:.3f}, {self.right[0]:.3f}) .. ({self.left[-1]:.3f}, {self.right[-1]:.3f})]"
 
 
-def test_IntervalQuery():
+
+def test_IntervalQuery() -> None:
     """This can be run by typing 'pytest' from the root."""
     test_intervals = IntervalQuery([0., 2., 7.],
                                    [1., 3., 9.])

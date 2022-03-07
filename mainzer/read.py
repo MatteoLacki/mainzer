@@ -1,12 +1,14 @@
+import numpy as np
+import pandas as pd
 import pathlib
 import sys
-import pandas as pd
+from typing import Tuple
 
 from .formulas import aa2formula
 
 
 
-def mzml(path, verbose=False):
+def mzml(path:str, verbose:bool=False) -> Tuple[np.array]:
     import pyteomics.mzml
     import pyteomics.mzxml
     path = pathlib.Path(path)
@@ -24,12 +26,12 @@ def mzml(path, verbose=False):
         raise NotImplementedError(f"We don't know how to parse {path}")
 
 
-def csv(path):
+def csv(path: str) -> Tuple[np.array]:
     spectrum = pd.read_csv(path)
     return spectrum.iloc[:,0], spectrum.iloc[:,1]
 
 
-def read_spectrum(path):
+def read_spectrum(path: str) -> Tuple[np.array]:
     path = pathlib.Path(path)
     extension = path.suffix.lower()
     if extension in ('.mzml','.mzxml'):
@@ -40,7 +42,7 @@ def read_spectrum(path):
         raise NotImplementedError(f"We don't know how to parse {path}")
 
 
-def read_molecules_for_lipido(path):
+def read_molecules_for_lipido(path: str) -> Tuple[dict]:
     molecules = pd.read_csv(path)
     molecules["formula"] = molecules["sequence_or_formula"]
     molecules.loc[molecules.group == "protein", "formula"] = molecules[molecules.group == "protein"].formula.apply(aa2formula)
@@ -72,7 +74,7 @@ def parse_oligomeric_state(state, sequence_sep="-"):
         return res
 
 # path = "/home/matteo/Projects/och_Kallol/mainzer/test_data/base_proteins.csv"
-def read_base_proteins(path):
+def read_base_proteins(path: str) -> pd.DataFrame:
     base_proteins = pd.read_csv(path)
     base_proteins.name = base_proteins.name.str.replace(" ","_") # no spaces will be allowed,....
     base_proteins.amino_acidic_sequence = base_proteins.amino_acidic_sequence.str.replace(" ","")
@@ -81,7 +83,7 @@ def read_base_proteins(path):
     return base_proteins
 
 # path = "/home/matteo/Projects/och_Kallol/mainzer/test_data/base_lipids.csv"
-def read_base_lipids(path):
+def read_base_lipids(path) -> pd.DataFrame:
     base_lipids = pd.read_csv(path)
     base_lipids.name = base_lipids.name.str.replace(" ","_") # no spaces will be allowed,....
     base_lipids.formula = base_lipids.formula.str.replace(" ","")

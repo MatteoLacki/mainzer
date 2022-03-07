@@ -1,5 +1,6 @@
 import datetime
 import math
+import numpy as np
 import pandas as pd
 import pathlib
 
@@ -65,13 +66,15 @@ def lipido_IO(settings, output_folder):
     return proteins, free_lipid_clusters, centroids_df
 
 
-def run_lipido(mz,
-               intensity,
-               base_proteins,
-               base_lipids,
-               params,
-               verbose=False,
-               debug=False):
+def run_lipido(
+    mz: np.array,
+    intensity: np.array,
+    base_proteins: pd.DataFrame,
+    base_lipids: pd.DataFrame,
+    params: dict,
+    verbose: bool=False,
+    debug: bool=False
+):
     if verbose:
         print("Centroiding")#TODO: change for a logger... wait, whaaat? No way we will ever get so orderly.
 
