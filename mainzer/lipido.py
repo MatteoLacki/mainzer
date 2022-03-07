@@ -4,22 +4,22 @@ import pandas as pd
 import pathlib
 
 # from .baseline import strip_baseline
-from .data_frame_ops import round_df
-from .isotope_ops import IsotopicCalculator
-from .molecule_ops import \
+from mainzer.data_frame_ops import round_df
+from mainzer.isotope_ops import IsotopicCalculator
+from mainzer.molecule_ops import \
     mered_proteins,\
     mered_lipids,\
     molecules2df,\
     crosslink,\
     merge_free_lipids_and_promissing_proteins
-from .read import \
+from mainzer.read import \
     read_spectrum,\
     read_base_lipids,\
     read_base_proteins
-from .regression import \
+from mainzer.regression import \
     single_precursor_regression,\
     turn_single_precursor_regression_chimeric
-from .signal_ops import cluster_spectrum
+from mainzer.signal_ops import cluster_spectrum
 
 
 def lipido_IO(settings, output_folder):
@@ -119,7 +119,7 @@ def run_lipido(mz,
     del regression_kwds["min_charge_sequence_length"]
 
     protein_ions_matchmaker = \
-        single_precursor_regression(protein_ions, 
+        single_precursor_regression(protein_ions,
                                     min_charge_sequence_length=params["min_charge_sequence_length"],
                                     **regression_kwds)
     promissing_protein_ions_df = protein_ions_matchmaker.ions[protein_ions_matchmaker.ions.reason_for_filtering_out=="none"].copy()
@@ -270,5 +270,5 @@ def run_lipido(mz,
     if debug:
         return proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, centroids_df, full_matchmaker, protein_ions_matchmaker
     else:
-        return proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, centroids_df, 
+        return proteins, free_lipid_clusters, simple_proteins, simple_free_lipid_clusters, centroids_df
 

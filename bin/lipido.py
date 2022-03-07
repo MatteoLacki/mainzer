@@ -47,8 +47,6 @@ print(logo)
 print("This program means business!")
 print()
 
-# Make it accept CLI arguments!
-
 settings = Settings.FromConsole()
 settings['output_folder'] = str(pathlib.Path(input("Ouput folder: ")).expanduser())
 lipido_IO(settings)
