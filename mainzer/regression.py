@@ -1,18 +1,20 @@
 from .matchmaker import Matchmaker
 
 
-def single_precursor_regression(ions,
-                                centroids,
-                                isotopic_calculator,
-                                neighbourhood_thr=1.1,
-                                min_neighbourhood_intensity=100,
-                                max_expected_ppm_distance=15,
-                                underfitting_quantile=0.0,
-                                min_total_fitted_probability=.8,
-                                min_max_intensity_threshold=100,
-                                min_charge_sequence_length=1,
-                                verbose=False,
-                                **kwargs):
+def single_precursor_regression(
+    ions,
+    centroids,
+    isotopic_calculator,
+    neighbourhood_thr=1.1,
+    min_neighbourhood_intensity=100,
+    max_expected_ppm_distance=15,
+    underfitting_quantile=0.0,
+    min_total_fitted_probability=.8,
+    min_max_intensity_threshold=100,
+    min_charge_sequence_length=1,
+    verbose=False,
+    **kwargs
+):
     matchmaker = Matchmaker(ions,
                             centroids,
                             isotopic_calculator)
@@ -30,14 +32,16 @@ def single_precursor_regression(ions,
     return matchmaker
 
 
-def turn_single_precursor_regression_chimeric(matchmaker,
-                                              fitting_to_void_penalty=1.0, 
-                                              merge_zeros=True,
-                                              normalize_X=False,
-                                              chimeric_regression_fits_cnt=3,
-                                              min_chimeric_intensity_threshold=100,
-                                              verbose=True,
-                                              **kwargs):
+def turn_single_precursor_regression_chimeric(
+    matchmaker,
+    fitting_to_void_penalty=1.0, 
+    merge_zeros=True,
+    normalize_X=False,
+    chimeric_regression_fits_cnt=3,
+    min_chimeric_intensity_threshold=100,
+    verbose=True,
+    **kwargs
+):
     if chimeric_regression_fits_cnt >= 2:
         print(f"Running chimeric_regression for the first time.")
     else:
@@ -61,44 +65,50 @@ def turn_single_precursor_regression_chimeric(matchmaker,
     return matchmaker
 
 
-def chimeric_regression(ions,
-                        centroids,
-                        isotopic_calculator,
-                        neighbourhood_thr=1.1,
-                        min_neighbourhood_intensity=100,
-                        max_expected_ppm_distance_to_cluster_apex=15,
-                        max_ppm_distance_top_prob_mz_cluster_apex=15,
-                        underfitting_quantile=0.0,
-                        min_total_fitted_probability=.8,
-                        min_max_intensity_threshold=100,
-                        min_charge_sequence_length=1,
-                        fitting_to_void_penalty=1.0,
-                        merge_zeros=True,
-                        normalize_X=False,
-                        chimeric_regression_fits_cnt=3,
-                        min_chimeric_intensity_threshold=100,
-                        verbose=False,
-                        **kwargs):
+def chimeric_regression(
+    ions,
+    centroids,
+    isotopic_calculator,
+    neighbourhood_thr=1.1,
+    min_neighbourhood_intensity=100,
+    max_expected_ppm_distance_to_cluster_apex=15,
+    max_ppm_distance_top_prob_mz_cluster_apex=15,
+    underfitting_quantile=0.0,
+    min_total_fitted_probability=.8,
+    min_max_intensity_threshold=100,
+    min_charge_sequence_length=1,
+    fitting_to_void_penalty=1.0,
+    merge_zeros=True,
+    normalize_X=False,
+    chimeric_regression_fits_cnt=3,
+    min_chimeric_intensity_threshold=100,
+    verbose=False,
+    **kwargs
+):
     """Full metal chimeric regression."""
-    matchmaker = single_precursor_regression(ions,
-                                             centroids,
-                                             isotopic_calculator,
-                                             neighbourhood_thr,
-                                             min_neighbourhood_intensity,
-                                             max_ppm_distance,
-                                             ppm_distance_type,
-                                             underfitting_quantile,
-                                             min_total_fitted_probability,
-                                             min_max_intensity_threshold,
-                                             min_charge_sequence_length,
-                                             verbose)
-    matchmaker = turn_single_precursor_regression_chimeric(matchmaker,
-                                                           fitting_to_void_penalty, 
-                                                           merge_zeros,
-                                                           normalize_X,
-                                                           min_chimeric_intensity_threshold,
-                                                           chimeric_regression_fits_cnt,
-                                                           verbose)
+    matchmaker = single_precursor_regression(
+        ions,
+        centroids,
+        isotopic_calculator,
+        neighbourhood_thr,
+        min_neighbourhood_intensity,
+        max_ppm_distance,
+        ppm_distance_type,
+        underfitting_quantile,
+        min_total_fitted_probability,
+        min_max_intensity_threshold,
+        min_charge_sequence_length,
+        verbose
+    )
+    matchmaker = turn_single_precursor_regression_chimeric(
+        matchmaker,
+        fitting_to_void_penalty, 
+        merge_zeros,
+        normalize_X,
+        min_chimeric_intensity_threshold,
+        chimeric_regression_fits_cnt,
+        verbose
+    )
     return matchmaker
 
 
